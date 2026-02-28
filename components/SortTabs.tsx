@@ -38,7 +38,7 @@ export default function SortTabs({ active, onChange, watchlistCount }: SortTabsP
     <div
       role="tablist"
       aria-label="Sort markets by"
-      className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none sm:flex-wrap"
+      className="flex gap-1.5 overflow-x-auto scrollbar-none"
     >
       {TABS.map((tab) => (
         <Button

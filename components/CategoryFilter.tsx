@@ -20,7 +20,7 @@ interface CategoryFilterProps {
 
 export default function CategoryFilter({ active, onChange }: CategoryFilterProps) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none sm:flex-wrap" aria-label="Filter by category">
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-none" aria-label="Filter by category">
       {CATEGORIES.map((cat) => {
         const value = cat === "All" ? "all" : cat;
         const isActive = active === value;
