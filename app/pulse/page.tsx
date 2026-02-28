@@ -45,32 +45,31 @@ export default async function PulsePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Predmove</span>
-            </Link>
-            <div className="w-px h-4 bg-border" />
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">
-                ~
-              </div>
-              <span className="font-semibold text-sm tracking-tight">Pulse</span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Proprietary
-              </span>
+      <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Predmove</span>
+          </Link>
+          <div className="w-px h-4 bg-border shrink-0" />
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-[11px]">
+              ~
             </div>
+            <span className="font-semibold text-sm tracking-tight">Pulse</span>
+            <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              Proprietary
+            </span>
           </div>
+          <div className="flex-1" />
           <ThemeToggle />
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight">Predmove Pulse</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
@@ -118,7 +117,7 @@ export default async function PulsePage() {
       </main>
 
       <footer className="border-t border-border py-5">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
             Data via{" "}
             <a

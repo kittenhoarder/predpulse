@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X } from "lucide-react";
 import HeatmapView from "./HeatmapView";
 
 const PAGE_LIMIT = 100;
@@ -56,6 +56,7 @@ export default function MarketTable({
   const [category, setCategory] = useState(initialCategory);
   const [offset, setOffset] = useState(0);
   const [viewMode, setViewMode] = useState<"table" | "heatmap">("table");
+  const [cogOpen, setCogOpen] = useState(false);
   // Watchlist IDs read from localStorage; refreshed when user stars/unstars
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
 
@@ -119,82 +120,155 @@ export default function MarketTable({
 
   return (
     <div className="flex flex-col">
-      {/* Single-row sticky controls bar — top-14 = h-14 header height */}
-      <div className="sticky top-14 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-background/95 backdrop-blur-sm border-b border-border flex items-center gap-0 overflow-x-auto scrollbar-none">
-        <SortTabs
-          active={sort}
-          onChange={handleSortChange}
-          watchlistCount={watchlistIds.length}
-        />
-
-        {/* Divider between sort tabs and category filters */}
-        <div className="shrink-0 w-px h-4 bg-border mx-2" />
-
-        <CategoryFilter active={category} onChange={handleCategoryChange} />
-
-        {/* Right-side controls — shrink-0 so they never scroll off screen */}
-        <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
-          {/* WebSocket live indicator */}
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
-                wsStatus === "open"
-                  ? "bg-emerald-500 animate-pulse"
-                  : wsStatus === "connecting"
-                    ? "bg-amber-400 animate-pulse"
-                    : "bg-muted-foreground/40"
-              }`}
-            />
-            <span className="hidden sm:inline">
-              {wsStatus === "open"
-                ? "Live"
-                : wsStatus === "connecting"
-                  ? "Connecting…"
-                  : fetchedAtText
-                    ? `Fetched ${fetchedAtText}`
-                    : "Polling"}
+      {/* Controls bar — full-viewport sticky strip, flush below the h-12 header */}
+      <div className="sticky top-12 z-10 bg-background/95 backdrop-blur-sm border-b border-border"
+           style={{ marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", paddingLeft: "max(1rem, calc(50vw - 50%))", paddingRight: "max(1rem, calc(50vw - 50%))" }}>
+        {/* Desktop: all controls in one scrollable row */}
+        <div className="hidden md:flex items-center h-11 gap-0 overflow-x-auto scrollbar-none max-w-screen-2xl mx-auto">
+          <SortTabs
+            active={sort}
+            onChange={handleSortChange}
+            watchlistCount={watchlistIds.length}
+          />
+          <div className="shrink-0 w-px h-4 bg-border mx-2" />
+          <CategoryFilter active={category} onChange={handleCategoryChange} />
+          <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
+                  wsStatus === "open"
+                    ? "bg-emerald-500 animate-pulse"
+                    : wsStatus === "connecting"
+                      ? "bg-amber-400 animate-pulse"
+                      : "bg-muted-foreground/40"
+                }`}
+              />
+              <span className="whitespace-nowrap">
+                {wsStatus === "open" ? "Live" : wsStatus === "connecting" ? "Connecting…" : fetchedAtText ? `Updated ${fetchedAtText}` : "Polling"}
+              </span>
             </span>
-          </span>
-
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-md border border-border overflow-hidden">
+            <div className="flex items-center rounded-md border border-border overflow-hidden">
+              <button
+                onClick={() => setViewMode("table")}
+                aria-label="Table view"
+                className={`h-7 px-2 flex items-center transition-colors ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setViewMode("heatmap")}
+                aria-label="Heatmap view"
+                className={`h-7 px-2 flex items-center border-l border-border transition-colors ${viewMode === "heatmap" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <button
-              onClick={() => setViewMode("table")}
-              aria-label="Table view"
-              className={`h-7 px-2 flex items-center transition-colors ${
-                viewMode === "table"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              onClick={() => mutate()}
+              disabled={isValidating}
+              aria-label="Refresh"
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40"
             >
-              <List className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setViewMode("heatmap")}
-              aria-label="Heatmap view"
-              className={`h-7 px-2 flex items-center border-l border-border transition-colors ${
-                viewMode === "heatmap"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${isValidating ? "animate-spin" : ""}`} />
             </button>
           </div>
+        </div>
 
-          {/* Triggers a fresh Gamma API fetch via the API route */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => mutate()}
-            disabled={isValidating}
-            className="gap-1.5 h-7 text-xs"
-          >
-            <RefreshCw className={`w-3 h-3 ${isValidating ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">{isValidating ? "Fetching…" : "Refresh"}</span>
-          </Button>
+        {/* Mobile: sort tabs + cog button */}
+        <div className="flex md:hidden items-center h-11 gap-0">
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
+            <SortTabs
+              active={sort}
+              onChange={handleSortChange}
+              watchlistCount={watchlistIds.length}
+            />
+          </div>
+          <div className="shrink-0 flex items-center gap-1.5 pl-2">
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
+                wsStatus === "open" ? "bg-emerald-500 animate-pulse" : wsStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-muted-foreground/40"
+              }`}
+            />
+            <button
+              onClick={() => setCogOpen(true)}
+              aria-label="Open settings"
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Mobile cog drawer — slide-up bottom sheet */}
+      {cogOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setCogOpen(false)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          {/* Sheet */}
+          <div
+            className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-2xl p-5 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle + header */}
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-1 rounded-full bg-border mx-auto absolute left-1/2 -translate-x-1/2 top-2.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters &amp; View</span>
+              <button
+                onClick={() => setCogOpen(false)}
+                className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Category filter */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Category</p>
+              <CategoryFilter active={category} onChange={(c) => { handleCategoryChange(c); setCogOpen(false); }} />
+            </div>
+
+            {/* View mode */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">View</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setViewMode("table"); setCogOpen(false); }}
+                  className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
+                    viewMode === "table"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" /> List
+                </button>
+                <button
+                  onClick={() => { setViewMode("heatmap"); setCogOpen(false); }}
+                  className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
+                    viewMode === "heatmap"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" /> Heatmap
+                </button>
+              </div>
+            </div>
+
+            {/* Refresh */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { mutate(); setCogOpen(false); }}
+              disabled={isValidating}
+              className="gap-1.5 h-8 text-xs w-full"
+            >
+              <RefreshCw className={`w-3 h-3 ${isValidating ? "animate-spin" : ""}`} />
+              {isValidating ? "Fetching…" : "Refresh data"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Market count + error — slim row between controls and table */}
       <div className="flex items-center justify-between pt-2 pb-1 px-0.5 min-h-[1.5rem]">
@@ -292,27 +366,33 @@ export default function MarketTable({
         </Table>
       </div>}
 
-      {/* Pagination — only in table view */}
+      {/* Pagination — only in table view when there are multiple pages */}
       {viewMode === "table" && (hasPrev || hasMore) && (
         <div className="flex items-center justify-between pt-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!hasPrev}
-            onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
-            className="gap-1"
-          >
-            <ChevronLeft className="w-4 h-4" /> Previous
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!hasMore}
-            onClick={() => setOffset(offset + PAGE_LIMIT)}
-            className="gap-1"
-          >
-            Next <ChevronRight className="w-4 h-4" />
-          </Button>
+          <div>
+            {hasPrev && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
+                className="gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </Button>
+            )}
+          </div>
+          <div>
+            {hasMore && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOffset(offset + PAGE_LIMIT)}
+                className="gap-1"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
     </div>

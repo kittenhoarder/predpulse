@@ -25,48 +25,50 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">
-                P
-              </div>
-              <span className="font-semibold text-sm tracking-tight">Predmove</span>
+      <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-3">
+          {/* Logo */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-[11px]">
+              P
             </div>
-            {/* Pulse nav link */}
-            <Link
-              href="/pulse"
-              className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50"
-            >
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Pulse
-            </Link>
+            <span className="font-semibold text-sm tracking-tight">Predmove</span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden sm:block tabular-nums">
-              {initialData.totalMarkets.toLocaleString()} markets
-            </span>
-            <ThemeToggle />
-          </div>
+          {/* Pulse nav link */}
+          <Link
+            href="/pulse"
+            className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50 shrink-0"
+          >
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Pulse
+          </Link>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Market count */}
+          <span className="text-xs text-muted-foreground/60 hidden sm:block tabular-nums shrink-0">
+            {initialData.totalMarkets.toLocaleString()} markets
+          </span>
+
+          {/* Theme toggle */}
+          <ThemeToggle />
         </div>
       </header>
 
       {/* Page content */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-0 pb-6 flex flex-col">
+      <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pt-0 pb-6 flex flex-col">
         {/* Predmove Pulse hero — above the fold */}
         <Suspense fallback={null}>
           <PulseDashboard initialData={initialPulse} />
         </Suspense>
 
-        {/* Divider between Pulse and market table */}
-        <div className="flex items-center gap-3 mb-0.5">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
+        {/* "Markets" label — left-aligned, no broken horizontal rule */}
+        <div className="mb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
             Markets
           </span>
-          <div className="flex-1 h-px bg-border" />
         </div>
 
         <Suspense
@@ -82,7 +84,7 @@ export default async function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-border py-5">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
             Data via{" "}
             <a

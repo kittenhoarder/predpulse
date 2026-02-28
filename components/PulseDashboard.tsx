@@ -55,7 +55,7 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
 
       {/* Skeleton loading */}
       {isLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
@@ -65,9 +65,9 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
         </div>
       )}
 
-      {/* Cards grid */}
+      {/* Cards grid — 2xl: all 8 cards in a single row */}
       {!isLoading && indices.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
           {indices.map((index) => (
             <PulseCard key={index.category} index={index} large={large} />
           ))}
