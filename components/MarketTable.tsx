@@ -112,37 +112,24 @@ export default function MarketTable({
   const emptyWatchlist = sort === "watchlist" && watchlistIds.length === 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Controls */}
-      <div className="flex flex-col gap-3">
+    <div className="flex flex-col">
+      {/* Single-row sticky controls bar — top-14 = h-14 header height */}
+      <div className="sticky top-14 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-background/95 backdrop-blur-sm border-b border-border flex items-center gap-0 overflow-x-auto scrollbar-none">
         <SortTabs
           active={sort}
           onChange={handleSortChange}
           watchlistCount={watchlistIds.length}
         />
+
+        {/* Divider between sort tabs and category filters */}
+        <div className="shrink-0 w-px h-4 bg-border mx-2" />
+
         <CategoryFilter active={category} onChange={handleCategoryChange} />
-      </div>
 
-      {/* Status bar */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs text-muted-foreground">
-          {emptyWatchlist ? (
-            "Star markets to build your watchlist"
-          ) : totalMarkets > 0 ? (
-            <>
-              Showing {offset + 1}–{Math.min(offset + PAGE_LIMIT, totalMarkets)}{" "}
-              of {totalMarkets.toLocaleString()} markets
-            </>
-          ) : isLoading ? (
-            "Loading…"
-          ) : (
-            "No markets found"
-          )}
-        </p>
-
-        <div className="flex items-center gap-2">
+        {/* Right-side controls — shrink-0 so they never scroll off screen */}
+        <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
           {/* WebSocket live indicator */}
-          <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span
               className={`inline-block w-1.5 h-1.5 rounded-full ${
                 wsStatus === "open"
@@ -152,16 +139,15 @@ export default function MarketTable({
                     : "bg-muted-foreground/40"
               }`}
             />
-            {wsStatus === "open"
-              ? "Live"
-              : wsStatus === "connecting"
-                ? "Connecting…"
-                : fetchedAtText
-                  ? `Fetched ${fetchedAtText}`
-                  : "Polling"}
-            {isValidating && wsStatus !== "open" && (
-              <span className="ml-0.5 inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            )}
+            <span className="hidden sm:inline">
+              {wsStatus === "open"
+                ? "Live"
+                : wsStatus === "connecting"
+                  ? "Connecting…"
+                  : fetchedAtText
+                    ? `Fetched ${fetchedAtText}`
+                    : "Polling"}
+            </span>
           </span>
 
           {/* View mode toggle */}
@@ -199,14 +185,33 @@ export default function MarketTable({
             className="gap-1.5 h-7 text-xs"
           >
             <RefreshCw className={`w-3 h-3 ${isValidating ? "animate-spin" : ""}`} />
-            {isValidating ? "Fetching…" : "Refresh"}
+            <span className="hidden sm:inline">{isValidating ? "Fetching…" : "Refresh"}</span>
           </Button>
         </div>
       </div>
 
+      {/* Market count + error — slim row between controls and table */}
+      <div className="flex items-center justify-between pt-2 pb-1 px-0.5 min-h-[1.5rem]">
+        <p className="text-xs text-muted-foreground">
+          {emptyWatchlist ? (
+            "Star markets to build your watchlist"
+          ) : totalMarkets > 0 ? (
+            <>
+              {offset + 1}–{Math.min(offset + PAGE_LIMIT, totalMarkets)}{" "}
+              <span className="text-muted-foreground/60">of {totalMarkets.toLocaleString()}</span>
+            </>
+          ) : isLoading ? null : (
+            "No markets found"
+          )}
+        </p>
+        {isValidating && wsStatus !== "open" && (
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+        )}
+      </div>
+
       {/* Error state */}
       {error && (
-        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
+        <div className="mb-2 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
           Failed to load markets. Try refreshing.
         </div>
       )}
