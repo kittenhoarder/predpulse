@@ -130,68 +130,39 @@ export default function MarketTable({
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — min-w ensures all columns are always present; overflow-auto on the Table wrapper enables horizontal scroll on mobile */}
       <div className="rounded-xl border border-border overflow-hidden">
         {/* table-fixed prevents columns reflowing when expansion rows are inserted */}
-        <Table className="table-fixed">
+        <Table className="table-fixed min-w-[640px]">
           <colgroup>
-            {/* Rank — hidden on mobile */}
-            <col className="hidden sm:table-column w-10" />
-            {/* Market — takes remaining width */}
-            <col />
-            {/* Probability */}
-            <col className="w-20 sm:w-24" />
-            {/* 24h Change */}
-            <col className="w-20 sm:w-24" />
-            {/* 24h Volume — hidden on mobile */}
-            <col className="hidden sm:table-column sm:w-24" />
-            {/* Liquidity — hidden on mobile */}
-            <col className="hidden sm:table-column sm:w-24" />
-            {/* Trade — hidden on mobile */}
-            <col className="hidden sm:table-column sm:w-16" />
+            <col className="w-10" />   {/* # */}
+            <col />                    {/* Market — takes remaining width */}
+            <col className="w-24" />   {/* Probability */}
+            <col className="w-24" />   {/* 24h Change */}
+            <col className="w-24" />   {/* 24h Volume */}
+            <col className="w-24" />   {/* Liquidity */}
+            <col className="w-16" />   {/* Trade */}
           </colgroup>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="hidden sm:table-cell text-xs">#</TableHead>
+              <TableHead className="text-xs">#</TableHead>
               <TableHead className="text-xs">Market</TableHead>
-              <TableHead className="text-xs text-right whitespace-nowrap">
-                <span className="sm:hidden">Prob.</span>
-                <span className="hidden sm:inline">Probability</span>
-              </TableHead>
-              <TableHead className="text-xs text-right whitespace-nowrap">
-                <span className="sm:hidden">24h</span>
-                <span className="hidden sm:inline">24h Change</span>
-              </TableHead>
-              <TableHead className="hidden sm:table-cell text-xs text-right whitespace-nowrap">24h Volume</TableHead>
-              <TableHead className="hidden sm:table-cell text-xs text-right">Liquidity</TableHead>
-              <TableHead className="hidden sm:table-cell" />
+              <TableHead className="text-xs text-right whitespace-nowrap">Probability</TableHead>
+              <TableHead className="text-xs text-right whitespace-nowrap">24h Change</TableHead>
+              <TableHead className="text-xs text-right whitespace-nowrap">24h Volume</TableHead>
+              <TableHead className="text-xs text-right">Liquidity</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading &&
               Array.from({ length: 10 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableHead className="hidden sm:table-cell py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="hidden sm:table-cell py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="hidden sm:table-cell py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
-                  <TableHead className="hidden sm:table-cell py-3">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </TableHead>
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <TableHead key={j} className="py-3">
+                      <div className="h-4 bg-muted rounded animate-pulse" />
+                    </TableHead>
+                  ))}
                 </TableRow>
               ))}
 

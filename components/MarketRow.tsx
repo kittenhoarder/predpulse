@@ -36,8 +36,8 @@ export default function MarketRow({ market, rank }: MarketRowProps) {
         className="group cursor-pointer select-none"
         onClick={() => setExpanded((e) => !e)}
       >
-        {/* Rank — hidden on mobile */}
-        <TableCell className="hidden sm:table-cell tabular-nums text-sm">
+        {/* Rank + expand chevron */}
+        <TableCell className="tabular-nums text-sm">
           <span className="flex items-center gap-1">
             {expanded ? (
               <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -48,50 +48,25 @@ export default function MarketRow({ market, rank }: MarketRowProps) {
           </span>
         </TableCell>
 
-        {/* Market question + categories (+ inline change badge on mobile) */}
+        {/* Market question + category badges */}
         <TableCell>
-          {/* Chevron visible only on mobile since rank cell is hidden */}
-          <span className="flex items-start gap-1.5 sm:block">
-            <span className="mt-0.5 sm:hidden shrink-0">
-              {expanded ? (
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="w-3 h-3 text-muted-foreground" />
-              )}
-            </span>
-            <span className="min-w-0">
-              <span
-                className="text-sm font-medium leading-snug line-clamp-2 block"
-                title={market.question}
-              >
-                {market.question}
-              </span>
-              <div className="flex flex-wrap items-center gap-1 mt-1">
-                {/* Change badge shown inline on mobile only */}
-                <Badge
-                  variant="outline"
-                  className={`sm:hidden text-xs font-semibold rounded-full ${
-                    isNeutral
-                      ? "text-muted-foreground border-border"
-                      : isPositive
-                        ? "text-emerald-500 border-emerald-500/30 bg-emerald-500/10"
-                        : "text-red-500 border-red-500/30 bg-red-500/10"
-                  }`}
-                >
-                  {formatChange(market.oneDayChange)}
-                </Badge>
-                {market.categories.slice(0, 2).map((cat) => (
-                  <Badge
-                    key={cat}
-                    variant="secondary"
-                    className="text-[10px] px-1.5 py-0 rounded-full font-normal"
-                  >
-                    {cat}
-                  </Badge>
-                ))}
-              </div>
-            </span>
+          <span
+            className="text-sm font-medium leading-snug line-clamp-2 block"
+            title={market.question}
+          >
+            {market.question}
           </span>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {market.categories.slice(0, 2).map((cat) => (
+              <Badge
+                key={cat}
+                variant="secondary"
+                className="text-[10px] px-1.5 py-0 rounded-full font-normal"
+              >
+                {cat}
+              </Badge>
+            ))}
+          </div>
         </TableCell>
 
         {/* Yes probability */}
@@ -101,8 +76,8 @@ export default function MarketRow({ market, rank }: MarketRowProps) {
           </span>
         </TableCell>
 
-        {/* 24h change — hidden on mobile (shown inline in market cell instead) */}
-        <TableCell className="hidden sm:table-cell text-right tabular-nums">
+        {/* 24h change */}
+        <TableCell className="text-right tabular-nums">
           <Badge
             variant="outline"
             className={`text-xs font-semibold rounded-full ${
@@ -117,18 +92,18 @@ export default function MarketRow({ market, rank }: MarketRowProps) {
           </Badge>
         </TableCell>
 
-        {/* 24h volume — hidden on mobile */}
-        <TableCell className="hidden sm:table-cell text-right tabular-nums text-sm text-muted-foreground">
+        {/* 24h volume */}
+        <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
           {formatCurrency(market.volume24h)}
         </TableCell>
 
-        {/* Liquidity — hidden on mobile */}
-        <TableCell className="hidden sm:table-cell text-right tabular-nums text-sm text-muted-foreground">
+        {/* Liquidity */}
+        <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
           {formatCurrency(market.liquidity)}
         </TableCell>
 
-        {/* Trade link — hidden on mobile, visible on row hover on desktop */}
-        <TableCell className="hidden sm:table-cell text-right" onClick={(e) => e.stopPropagation()}>
+        {/* Trade link — visible on row hover */}
+        <TableCell className="text-right w-16" onClick={(e) => e.stopPropagation()}>
           <a
             href={polymarketUrl}
             target="_blank"
