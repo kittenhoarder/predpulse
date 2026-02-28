@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -101,11 +102,11 @@ export default function MarketTable({
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setWatchlistIds(Array.from(getWatchlist()));
+    try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
   }, []);
 
   const refreshWatchlist = useCallback(() => {
-    setWatchlistIds(Array.from(getWatchlist()));
+    try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
   }, []);
 
   const url = buildUrl(sort, category, offset, watchlistIds, source);
@@ -384,9 +385,9 @@ export default function MarketTable({
                 Array.from({ length: 10 }).map((_, i) => (
                   <TableRow key={i}>
                     {Array.from({ length: 7 }).map((_, j) => (
-                      <TableHead key={j} className="py-3">
+                      <TableCell key={j} className="py-3">
                         <div className="h-4 bg-muted rounded animate-pulse" />
-                      </TableHead>
+                      </TableCell>
                     ))}
                   </TableRow>
                 ))}
@@ -406,14 +407,14 @@ export default function MarketTable({
 
               {!isLoading && markets.length === 0 && !error && (
                 <TableRow>
-                  <TableHead
+                  <TableCell
                     colSpan={7}
                     className="py-12 text-center text-muted-foreground text-sm font-normal"
                   >
                     {emptyWatchlist
                       ? "No saved markets yet — star a market to add it to your watchlist."
                       : "No markets found for this filter."}
-                  </TableHead>
+                  </TableCell>
                 </TableRow>
               )}
             </TableBody>

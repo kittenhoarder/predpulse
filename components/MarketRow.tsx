@@ -185,7 +185,7 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
               href={tradeUrl}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Open ${market.question} on ${market.source === "kalshi" ? "Kalshi" : "Polymarket"}`}
+              aria-label={`Open ${market.question} on ${market.source === "kalshi" ? "Kalshi" : market.source === "manifold" ? "Manifold" : "Polymarket"}`}
               className="inline-flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity"
             >
               <ExternalLink className="w-3 h-3" />

@@ -63,20 +63,25 @@ function mapGroupSlugs(groupSlugs: string[] = []): { slugs: string[]; labels: st
 function extractDescription(raw: ManifoldMarket["description"]): string {
   if (!raw) return "";
   if (typeof raw === "string") return raw;
-  // Manifold uses a ProseMirror JSON blob — flatten to empty for now
+  // ProseMirror JSON blob — text extraction not yet implemented, return empty
   return "";
 }
 
 export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
-  // Fetch open binary markets sorted by recent activity; max 1000 per call
+  // Valid sort values: created-time | updated-time | last-bet-time | last-comment-time
+  // The API has no open/binary filter params; we filter client-side after fetch.
   const url =
-    "https://api.manifold.markets/v0/markets" +
-    "?limit=1000&sort=last-updated&filter=open";
+    "https://api.manifold.markets/v0/markets?limit=1000&sort=last-bet-time";
 
   const res = await fetch(url, { next: { revalidate: 300 } });
   if (!res.ok) throw new Error(`[manifold] HTTP ${res.status}`);
 
-  const raw: ManifoldMarket[] = await res.json();
+  let raw: ManifoldMarket[];
+  try {
+    raw = await res.json();
+  } catch {
+    throw new Error("[manifold] failed to parse JSON response");
+  }
 
   const now = Date.now();
   const results: ProcessedMarket[] = [];
@@ -90,18 +95,16 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
     const prob = Math.round(m.probability * 1000) / 10; // 0–100, 1 dp
     const { slugs, labels } = mapGroupSlugs(m.groupSlugs);
     const endDate = m.closeTime ? new Date(m.closeTime).toISOString() : "";
-    const daysToClose = m.closeTime
-      ? Math.max(0, (m.closeTime - now) / (1000 * 60 * 60 * 24))
-      : 365;
-
-    // Skip markets that closed very recently or have no probability signal
-    if (daysToClose < 0) continue;
+    const msToClose = m.closeTime ? m.closeTime - now : Infinity;
+    // Skip already-closed markets
+    if (msToClose < 0) continue;
+    const daysToClose = msToClose === Infinity ? 365 : msToClose / (1000 * 60 * 60 * 24);
 
     results.push({
       id: m.id,
       question: m.question,
       source: "manifold",
-      eventSlug: m.url, // full URL used for external links
+      eventSlug: m.url, // Manifold: stores full URL here instead of a slug (handled in MarketRow/ExpandedPanel)
       eventTitle: m.question,
       categoryslugs: slugs,
       categories: labels,
@@ -118,7 +121,7 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
       createdAt: new Date(m.createdTime).toISOString(),
       endDate,
       outcomes: ["Yes", "No"],
-      outcomePrices: [m.probability, 1 - m.probability],
+      outcomePrices: [m.probability, 1 - m.probability], // fractional 0–1 (consistent with Polymarket/Kalshi mapping)
       bestBid: m.probability,
       bestAsk: m.probability,
       spread: 0,
