@@ -137,8 +137,8 @@ export default function MarketTable({
             <TableRow className="hover:bg-transparent">
               <TableHead className="w-10 text-xs">#</TableHead>
               <TableHead className="text-xs">Market</TableHead>
-              <TableHead className="text-xs text-right whitespace-nowrap">Yes Price</TableHead>
-              <TableHead className="text-xs text-right whitespace-nowrap">24h Move</TableHead>
+              <TableHead className="text-xs text-right whitespace-nowrap">Probability</TableHead>
+              <TableHead className="text-xs text-right whitespace-nowrap">24h Change</TableHead>
               <TableHead className="text-xs text-right whitespace-nowrap">24h Volume</TableHead>
               <TableHead className="text-xs text-right">Liquidity</TableHead>
               <TableHead className="w-16" />

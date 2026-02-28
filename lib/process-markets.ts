@@ -35,7 +35,6 @@ function extractCategories(
   for (const tag of event.tags) {
     if (!tag.slug) continue;
     slugs.push(tag.slug);
-    // Prefer live tagMap label; fallback to tag.label from event; then title-case slug
     labels.push(tagMap.get(tag.slug) ?? tag.label ?? titleCase(tag.slug));
   }
   if (slugs.length === 0) return { slugs: ["general"], labels: ["General"] };
@@ -46,7 +45,7 @@ function extractCategories(
  * Parse a Gamma API JSON-string field (e.g. outcomePrices / outcomes / clobTokenIds).
  * Returns an empty array on any parse failure.
  */
-function parseJsonArray<T>(raw: string | T[]): T[] {
+export function parseJsonArray<T>(raw: string | T[]): T[] {
   if (Array.isArray(raw)) return raw;
   try {
     const parsed = JSON.parse(raw as string);
@@ -54,6 +53,11 @@ function parseJsonArray<T>(raw: string | T[]): T[] {
   } catch {
     return [];
   }
+}
+
+/** Convert fractional price change to rounded percentage points. */
+function toPP(fractional: number | undefined | null): number {
+  return Math.round((fractional ?? 0) * 10000) / 100;
 }
 
 /**
@@ -73,25 +77,41 @@ function processMarket(
   if (outcomePricesRaw.length === 0) return null;
 
   const outcomePrices = outcomePricesRaw.map((p) => parseFloat(p));
-  const currentPrice = outcomePrices[0] * 100;
-  const oneDayChange = (market.oneDayPriceChange ?? 0) * 100;
+  const currentPrice = Math.round(outcomePrices[0] * 10000) / 100;
 
   const { slugs, labels } = extractCategories(event, tagMap);
+
+  // First CLOB token ID is the "Yes" token — used to fetch price history
+  const clobTokenId = parseJsonArray<string>(market.clobTokenIds)[0] ?? "";
 
   return {
     id: market.id,
     question: market.question,
     eventSlug: event.slug,
+    eventTitle: event.title,
     categoryslugs: slugs,
     categories: labels,
     image: market.image || event.image || "",
-    currentPrice: Math.round(currentPrice * 100) / 100,
-    oneDayChange: Math.round(oneDayChange * 100) / 100,
+    currentPrice,
+    oneDayChange: toPP(market.oneDayPriceChange),
+    oneHourChange: toPP(market.oneHourPriceChange),
+    oneWeekChange: toPP(market.oneWeekPriceChange),
+    oneMonthChange: toPP(market.oneMonthPriceChange),
     volume24h: market.volume24hr ?? 0,
+    volume1wk: market.volume1wk ?? 0,
+    volume1mo: market.volume1mo ?? 0,
     liquidity: market.liquidityNum ?? parseFloat(market.liquidity ?? "0"),
     createdAt: market.createdAt,
+    endDate: market.endDate ?? "",
     outcomes: outcomesRaw,
     outcomePrices,
+    bestBid: market.bestBid ?? 0,
+    bestAsk: market.bestAsk ?? 0,
+    spread: market.spread ?? 0,
+    clobTokenId,
+    description: market.description ?? "",
+    resolutionSource: market.resolutionSource ?? "",
+    competitive: market.competitive ?? 0,
   };
 }
 
