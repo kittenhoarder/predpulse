@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import useSWR, { useSWRConfig } from "swr";
+import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
 import SortTabs from "./SortTabs";
@@ -44,17 +44,15 @@ export default function MarketTable({
   const [sort, setSort] = useState<SortMode>(initialSort);
   const [category, setCategory] = useState(initialCategory);
   const [offset, setOffset] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshMsg, setRefreshMsg] = useState<string | null>(null);
 
-  const { mutate } = useSWRConfig();
   const url = buildUrl(sort, category, offset);
 
-  const { data, error, isLoading, isValidating } = useSWR(url, fetcher, {
-    fallbackData: offset === 0 && sort === initialSort && category === initialCategory
-      ? initialData
-      : undefined,
-    refreshInterval: 0, // Manual refresh only — cron runs daily
+  const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
+    fallbackData:
+      offset === 0 && sort === initialSort && category === initialCategory
+        ? initialData
+        : undefined,
+    refreshInterval: 0,
     revalidateOnFocus: false,
     keepPreviousData: true,
   });
@@ -69,42 +67,18 @@ export default function MarketTable({
     setOffset(0);
   }, []);
 
-  const handleManualRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setRefreshMsg(null);
-    try {
-      const cronSecret = process.env.NEXT_PUBLIC_CRON_SECRET;
-      const res = await fetch("/api/cron/refresh", {
-        method: "GET",
-        headers: cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {},
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `HTTP ${res.status}`);
-      }
-      const body = await res.json();
-      setRefreshMsg(`Fetched ${body.markets} markets in ${body.elapsedMs}ms`);
-      // Invalidate all cached SWR keys so the table reloads
-      await mutate(() => true, undefined, { revalidate: true });
-    } catch (err) {
-      setRefreshMsg(err instanceof Error ? err.message : "Refresh failed");
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [mutate]);
-
   const markets = data?.markets ?? [];
   const totalMarkets = data?.totalMarkets ?? 0;
   const hasMore = offset + PAGE_LIMIT < totalMarkets;
   const hasPrev = offset > 0;
 
-  const cachedAtText = data?.cachedAt
+  const fetchedAtText = data?.cachedAt
     ? formatDistanceToNow(new Date(data.cachedAt), { addSuffix: true })
     : null;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Controls row */}
+      {/* Controls */}
       <div className="flex flex-col gap-3">
         <SortTabs active={sort} onChange={handleSortChange} />
         <CategoryFilter active={category} onChange={handleCategoryChange} />
@@ -126,31 +100,25 @@ export default function MarketTable({
         </p>
 
         <div className="flex items-center gap-3">
-          {/* Refresh feedback */}
-          {refreshMsg && (
-            <p className="text-xs text-muted-foreground">{refreshMsg}</p>
-          )}
-
-          {/* Cache staleness indicator */}
-          {cachedAtText && !isRefreshing && (
+          {fetchedAtText && (
             <p className="text-xs text-muted-foreground hidden sm:block">
-              {data?.fromCache ? "Cached" : "Live"} · {cachedAtText}
+              Fetched {fetchedAtText}
               {isValidating && (
                 <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               )}
             </p>
           )}
 
-          {/* Manual refresh button */}
+          {/* Triggers a fresh Gamma API fetch via the API route */}
           <Button
             variant="outline"
             size="sm"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
+            onClick={() => mutate()}
+            disabled={isValidating}
             className="gap-1.5 h-7 text-xs"
           >
-            <RefreshCw className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`} />
-            {isRefreshing ? "Fetching…" : "Refresh data"}
+            <RefreshCw className={`w-3 h-3 ${isValidating ? "animate-spin" : ""}`} />
+            {isValidating ? "Fetching…" : "Refresh"}
           </Button>
         </div>
       </div>
@@ -158,7 +126,7 @@ export default function MarketTable({
       {/* Error state */}
       {error && (
         <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
-          Failed to load markets. Try refreshing manually.
+          Failed to load markets. Try refreshing.
         </div>
       )}
 
@@ -199,7 +167,10 @@ export default function MarketTable({
 
             {!isLoading && markets.length === 0 && !error && (
               <TableRow>
-                <TableHead colSpan={7} className="py-12 text-center text-muted-foreground text-sm font-normal">
+                <TableHead
+                  colSpan={7}
+                  className="py-12 text-center text-muted-foreground text-sm font-normal"
+                >
                   No markets found for this filter.
                 </TableHead>
               </TableRow>
