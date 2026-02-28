@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { ProcessedMarket } from "@/lib/types";
+import { useState, useEffect, useRef } from "react";
+import type { ProcessedMarket, LivePrice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronDown, ChevronRight, Star, Link } from "lucide-react";
@@ -23,16 +23,31 @@ interface MarketRowProps {
   market: ProcessedMarket;
   rank: number;
   onWatchlistChange?: () => void;
+  livePrice?: LivePrice;
 }
 
-export default function MarketRow({ market, rank, onWatchlistChange }: MarketRowProps) {
+export default function MarketRow({ market, rank, onWatchlistChange, livePrice }: MarketRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [starred, setStarred] = useState(false);
+  // Flash state for live price updates: "up" | "down" | null
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Read from localStorage after mount (SSR safe)
   useEffect(() => {
     setStarred(isWatchlisted(market.id));
   }, [market.id]);
+
+  // Trigger flash animation whenever live price direction changes
+  useEffect(() => {
+    if (!livePrice?.flash) return;
+    setFlash(livePrice.flash);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlash(null), 600);
+    return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
+  }, [livePrice?.flash, livePrice?.price]);
 
   const isPositive = market.oneDayChange > 0;
   const isNeutral = market.oneDayChange === 0;
@@ -84,10 +99,18 @@ export default function MarketRow({ market, rank, onWatchlistChange }: MarketRow
           </div>
         </TableCell>
 
-        {/* Yes probability */}
+        {/* Yes probability — uses live WebSocket price when available */}
         <TableCell className="text-right tabular-nums">
-          <span className="text-sm font-semibold">
-            {market.currentPrice.toFixed(1)}%
+          <span
+            className={`text-sm font-semibold transition-colors duration-300 ${
+              flash === "up"
+                ? "text-emerald-400"
+                : flash === "down"
+                  ? "text-red-400"
+                  : ""
+            }`}
+          >
+            {(livePrice?.price ?? market.currentPrice).toFixed(1)}%
           </span>
         </TableCell>
 

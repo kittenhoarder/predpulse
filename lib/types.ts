@@ -115,6 +115,13 @@ export interface ProcessedMarket {
   competitive: number;
 }
 
+// Live price overlay from WebSocket (best_bid_ask events)
+export interface LivePrice {
+  // Yes outcome probability as percentage 0–100 (best ask * 100)
+  price: number;
+  flash: "up" | "down" | null;
+}
+
 // Shape returned by GET /api/markets
 export interface MarketsApiResponse {
   markets: ProcessedMarket[];

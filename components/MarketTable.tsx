@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
 import { getWatchlist } from "@/lib/watchlist";
+import { useMarketSocket } from "@/lib/hooks/useMarketSocket";
 import SortTabs from "./SortTabs";
 import CategoryFilter from "./CategoryFilter";
 import MarketRow from "./MarketRow";
@@ -73,10 +74,22 @@ export default function MarketTable({
       offset === 0 && sort === initialSort && category === initialCategory
         ? initialData
         : undefined,
-    refreshInterval: 0,
+    // WebSocket handles sub-minute freshness; SWR does full sorted-list refresh every 60s
+    refreshInterval: 60_000,
     revalidateOnFocus: false,
     keepPreviousData: true,
   });
+
+  const markets = data?.markets ?? [];
+
+  // Derive stable token ID list for WebSocket subscription
+  const tokenIds = useMemo(
+    () => markets.map((m) => m.clobTokenId).filter(Boolean),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [markets.map((m) => m.clobTokenId).join(",")]
+  );
+
+  const { livePrices, status: wsStatus } = useMarketSocket(tokenIds);
 
   const handleSortChange = useCallback((newSort: SortMode) => {
     setSort(newSort);
@@ -88,7 +101,6 @@ export default function MarketTable({
     setOffset(0);
   }, []);
 
-  const markets = data?.markets ?? [];
   const totalMarkets = data?.totalMarkets ?? 0;
   const hasMore = offset + PAGE_LIMIT < totalMarkets;
   const hasPrev = offset > 0;
@@ -129,14 +141,28 @@ export default function MarketTable({
         </p>
 
         <div className="flex items-center gap-2">
-          {fetchedAtText && (
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              Fetched {fetchedAtText}
-              {isValidating && (
-                <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              )}
-            </p>
-          )}
+          {/* WebSocket live indicator */}
+          <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
+                wsStatus === "open"
+                  ? "bg-emerald-500 animate-pulse"
+                  : wsStatus === "connecting"
+                    ? "bg-amber-400 animate-pulse"
+                    : "bg-muted-foreground/40"
+              }`}
+            />
+            {wsStatus === "open"
+              ? "Live"
+              : wsStatus === "connecting"
+                ? "Connecting…"
+                : fetchedAtText
+                  ? `Fetched ${fetchedAtText}`
+                  : "Polling"}
+            {isValidating && wsStatus !== "open" && (
+              <span className="ml-0.5 inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            )}
+          </span>
 
           {/* View mode toggle */}
           <div className="flex items-center rounded-md border border-border overflow-hidden">
@@ -233,6 +259,7 @@ export default function MarketTable({
                   market={market}
                   rank={offset + idx + 1}
                   onWatchlistChange={refreshWatchlist}
+                  livePrice={livePrices.get(market.clobTokenId)}
                 />
               ))}
 
