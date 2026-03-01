@@ -1,5 +1,5 @@
 import type { KalshiMarket, KalshiSeries, KalshiCandle } from "./types";
-import { fetchWithTimeout } from "./fetch-utils";
+import { fetchWithTimeout, fetchWithRetry } from "./fetch-utils";
 
 const KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2";
 const FETCH_TIMEOUT_MS = 15_000;
@@ -191,7 +191,9 @@ export async function fetchKalshiCandlesticks(
     const url = `${KALSHI_BASE}/markets/candlesticks?${params.toString()}`;
     let res: Response;
     try {
-      res = await fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS);
+      res = await fetchWithRetry(
+        () => fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS),
+      );
     } catch (err) {
       console.warn("[kalshi] markets/candlesticks fetch error:", err);
       continue;

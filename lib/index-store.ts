@@ -62,7 +62,10 @@ const INDEX_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
 const MARKET_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function defaultStorePath(): string {
-  return process.env.INDEX_STORE_PATH ?? path.join(process.cwd(), ".predpulse", "index-store.json");
+  if (process.env.INDEX_STORE_PATH) return process.env.INDEX_STORE_PATH;
+  // Vercel serverless mounts /var/task as read-only; /tmp is the only writable path.
+  const base = process.env.VERCEL ? "/tmp" : process.cwd();
+  return path.join(base, ".predpulse", "index-store.json");
 }
 
 function emptyStore(): StoreState {
