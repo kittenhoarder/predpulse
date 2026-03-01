@@ -163,7 +163,7 @@ export interface PulseSnapshot {
   score: number;
 }
 
-// Predmove Pulse Index entry for a single category
+// Predpulse Index entry for a single category
 export interface PulseIndex {
   // e.g. "politics", "crypto", "economics"
   category: string;

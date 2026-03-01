@@ -44,24 +44,21 @@ export async function GET(req: NextRequest) {
       >
         {/* Top bar */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "8px",
-              backgroundColor: "#6366f1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontWeight: 700,
-              fontSize: "14px",
-            }}
+          {/* Pulse-wave mark — inlined because edge runtime can't import components */}
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 40 40"
+            fill="none"
+            stroke="#6366f1"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            P
-          </div>
+            <polyline points="2,20 10,20 15,6 20,34 25,20 30,20 33,12 36,26 40,20" />
+          </svg>
           <span style={{ color: "#e4e4e7", fontWeight: 600, fontSize: "18px" }}>
-            Predmove
+            Predpulse
           </span>
           {category && (
             <span
@@ -116,7 +113,7 @@ export async function GET(req: NextRequest) {
           </div>
           {/* Right-align the powered-by */}
           <div style={{ marginLeft: "auto", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
-            <span style={{ color: "#52525b", fontSize: "13px" }}>predmove.vercel.app</span>
+            <span style={{ color: "#52525b", fontSize: "13px" }}>predpulse.xyz</span>
             <span style={{ color: "#3f3f46", fontSize: "12px" }}>via Polymarket</span>
           </div>
         </div>

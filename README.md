@@ -1,8 +1,8 @@
-# Predmove
+# Predpulse
 
 **Prediction market intelligence dashboard.** Real-time movers, heatmap, sparklines, and trade activity across Polymarket, Kalshi, and Manifold — the "CNBC Movers board" for prediction markets.
 
-Live: [predmove.vercel.app](https://predmove.vercel.app)
+Live: [predpulse.xyz](https://predpulse.xyz)
 
 ---
 
@@ -192,5 +192,6 @@ Push to `main` → Vercel auto-deploys. No env vars required beyond `NEXT_PUBLIC
 - **Versions:** Semantic Versioning on production releases
 - **Types:** All data shapes live in `lib/types.ts` — extend there first
 - **New data sources:** Add `lib/<source>.ts` → wire into `get-markets.ts` → add `source` value to `ProcessedMarket.source` union
+- **Renaming:** App name is Predpulse; domain is predpulse.xyz; Vercel project is predpulse
 - **New sort modes:** Add to `SortMode` union → `sortMarkets()` in `get-markets.ts` → `TABS` in `SortTabs.tsx`
 - **No force-push to main**

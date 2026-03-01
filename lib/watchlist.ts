@@ -3,7 +3,20 @@
  * All reads/writes are synchronous and safe to call on the client only.
  */
 
-const KEY = "predmove:watchlist";
+// One-time migration from the old "predmove" key — runs once on first client load
+if (typeof window !== "undefined") {
+  try {
+    const old = localStorage.getItem("predmove:watchlist");
+    if (old) {
+      localStorage.setItem("predpulse:watchlist", old);
+      localStorage.removeItem("predmove:watchlist");
+    }
+  } catch {
+    // localStorage unavailable (private mode)
+  }
+}
+
+const KEY = "predpulse:watchlist";
 
 export function getWatchlist(): Set<string> {
   if (typeof window === "undefined") return new Set();

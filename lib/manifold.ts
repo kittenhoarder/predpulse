@@ -19,7 +19,7 @@ interface ManifoldMarket {
   creatorName?: string;
 }
 
-// Manifold group slugs → Predmove category slugs
+// Manifold group slugs → Predpulse category slugs
 const MANIFOLD_CATEGORY_MAP: Record<string, string> = {
   politics:          "politics",
   "us-politics":     "politics",

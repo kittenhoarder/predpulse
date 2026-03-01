@@ -6,6 +6,7 @@ import type { PulseApiResponse } from "@/lib/types";
 import MarketTable from "@/components/MarketTable";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,8 @@ export default async function HomePage() {
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-3">
           {/* Logo */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-[11px]">
-              P
-            </div>
-            <span className="font-semibold text-sm tracking-tight">Predmove</span>
+            <PulseLogo size="sm" />
+            <span className="font-semibold text-sm tracking-tight">Predpulse</span>
           </div>
 
           {/* Pulse nav link */}
@@ -59,7 +58,7 @@ export default async function HomePage() {
 
       {/* Page content */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pt-0 pb-6 flex flex-col">
-        {/* Predmove Pulse hero — above the fold */}
+        {/* Pulse hero — above the fold */}
         <Suspense fallback={null}>
           <PulseDashboard initialData={initialPulse} />
         </Suspense>
@@ -106,7 +105,7 @@ export default async function HomePage() {
             </a>
             . Not financial advice.
           </span>
-          <span>Predmove is not affiliated with Polymarket or Kalshi.</span>
+          <span>Predpulse is not affiliated with Polymarket or Kalshi.</span>
         </div>
       </footer>
     </div>

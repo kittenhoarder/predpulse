@@ -7,19 +7,20 @@ import type { PulseApiResponse } from "@/lib/types";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronLeft } from "lucide-react";
+import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Predmove Pulse — Category Sentiment Index",
+  title: "Predpulse — Category Sentiment Index",
   description:
-    "Predmove Pulse is a proprietary real-time sentiment index across Polymarket & Kalshi, scoring 8 market categories from Extreme Bearish to Extreme Bullish.",
+    "Predpulse is a proprietary real-time sentiment index across Polymarket & Kalshi, scoring 8 market categories from Extreme Bearish to Extreme Bullish.",
   openGraph: {
-    title: "Predmove Pulse",
+    title: "Predpulse — Category Sentiment Index",
     description: "Real-time prediction market sentiment across Polymarket & Kalshi",
     images: [
       {
-        url: `/api/og?type=pulse&title=Predmove+Pulse&category=All+Categories`,
+        url: `/api/og?type=pulse&title=Predpulse&category=All+Categories`,
         width: 1200,
         height: 630,
       },
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Predmove Pulse",
+    title: "Predpulse — Category Sentiment Index",
     description: "Real-time prediction market sentiment across Polymarket & Kalshi",
   },
 };
@@ -52,13 +53,11 @@ export default async function PulsePage() {
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Predmove</span>
+            <span className="hidden sm:inline">Predpulse</span>
           </Link>
           <div className="w-px h-4 bg-border shrink-0" />
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-[11px]">
-              ~
-            </div>
+            <PulseLogo size="sm" />
             <span className="font-semibold text-sm tracking-tight">Pulse</span>
             <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
               Proprietary
@@ -71,7 +70,7 @@ export default async function PulsePage() {
 
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Predmove Pulse</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Predpulse</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xl">
             A proprietary composite sentiment index across 8 market categories. Each score
             synthesizes probability, momentum, breadth, volume, and cross-platform consensus
@@ -139,7 +138,7 @@ export default async function PulsePage() {
             </a>
             . Not financial advice.
           </span>
-          <span>Predmove Pulse is an original index by Predmove.</span>
+          <span>Predpulse is an original index by Predpulse.</span>
         </div>
       </footer>
     </div>

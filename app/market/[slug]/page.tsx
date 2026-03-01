@@ -5,6 +5,7 @@ import { buildTagMap, processEvents } from "@/lib/process-markets";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Separator } from "@/components/ui/separator";
 import MarketDetailClient from "./MarketDetailClient";
+import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const event = await fetchEventBySlug(params.slug).catch(() => null);
   if (!event) {
-    return { title: "Market not found — Predmove" };
+    return { title: "Market not found — Predpulse" };
   }
 
   const market = event.markets?.[0];
@@ -32,12 +33,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const ogUrl = new URL(
     `/api/og?title=${encodeURIComponent(event.title)}&prob=${prob}&change=${change}%25&category=${encodeURIComponent(category)}`,
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://predmove.vercel.app"
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"
   );
 
   return {
-    title: `${event.title} — Predmove`,
-    description: `Current probability: ${prob}% · 24h change: ${Number(change) >= 0 ? "+" : ""}${change}% via Predmove`,
+    title: `${event.title} — Predpulse`,
+    description: `Current probability: ${prob}% · 24h change: ${Number(change) >= 0 ? "+" : ""}${change}% via Predpulse`,
     openGraph: {
       title: event.title,
       description: `${prob}% probability · ${Number(change) >= 0 ? "+" : ""}${change}% 24h`,
@@ -74,10 +75,8 @@ export default async function MarketDetailPage({ params }: PageProps) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <a href="/" className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-xs">
-                P
-              </div>
-              <span className="font-semibold text-sm tracking-tight">Predmove</span>
+              <PulseLogo size="sm" />
+              <span className="font-semibold text-sm tracking-tight">Predpulse</span>
             </a>
             <Separator orientation="vertical" className="h-4 mx-1" />
             <span className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-xs">
