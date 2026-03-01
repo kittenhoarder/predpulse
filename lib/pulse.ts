@@ -1,5 +1,6 @@
 import type { ProcessedMarket, PulseIndex } from "./types";
 import { computeIndices, PULSE_CATEGORIES, pulseBand } from "./indices";
+import { isIndexPersistenceEnabled } from "./index-store";
 
 function isCore3Enabled(): boolean {
   return process.env.INDEX_CORE3_ENABLED === "1" || process.env.INDEX_CORE3_ENABLED === "true";
@@ -11,12 +12,14 @@ function isCore3Enabled(): boolean {
  */
 export function computePulse(markets: ProcessedMarket[]): PulseIndex[] {
   const core3Enabled = isCore3Enabled();
+  const persist = !core3Enabled && isIndexPersistenceEnabled();
+
   let result = computeIndices(markets, {
     family: "directional",
     horizon: "24h",
     sourceScope: "core",
     scoreProfile: core3Enabled ? "core3" : "full",
-    persist: core3Enabled ? false : true,
+    persist,
   });
 
   // Graceful degradation: if core venues are unavailable on a cold/partial fetch,
@@ -27,7 +30,7 @@ export function computePulse(markets: ProcessedMarket[]): PulseIndex[] {
       horizon: "24h",
       sourceScope: "all",
       scoreProfile: core3Enabled ? "core3" : "full",
-      persist: core3Enabled ? false : true,
+      persist,
     });
   }
 

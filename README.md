@@ -17,7 +17,9 @@ Live: [predpulse.xyz](https://predpulse.xyz)
 | Real-time | WebSocket (Kalshi + Polymarket CLOB) via `useMarketSocket` |
 | Hosting | Vercel |
 
-No database. No auth. No persistent cache layer. Every `/api/markets` call fetches live from all three sources in parallel.
+No database. No auth. No persistent cache layer for market ingestion. Every `/api/markets` call fetches live from all three sources in parallel.
+
+Index snapshot persistence is **opt-in** via `INDEX_PERSISTENCE_ENABLED=true` (default: disabled/in-memory).
 
 ---
 

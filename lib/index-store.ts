@@ -1,6 +1,10 @@
 import fs from "fs";
 import path from "path";
 
+const INDEX_PERSISTENCE_ENABLED =
+  process.env.INDEX_PERSISTENCE_ENABLED === "1" ||
+  process.env.INDEX_PERSISTENCE_ENABLED === "true";
+
 export interface StoredIndexSnapshot {
   timestamp: string;
   family: "directional" | "liquidity" | "divergence" | "certainty";
@@ -52,6 +56,8 @@ interface StoreState {
   resolvedOutcomes: ResolvedOutcomeRow[];
 }
 
+let inMemoryStore: StoreState = emptyStore();
+
 const INDEX_RETENTION_MS = 180 * 24 * 60 * 60 * 1000;
 const MARKET_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -86,12 +92,23 @@ function safeParseStore(raw: string): StoreState {
 }
 
 function readStoreSync(): StoreState {
+  if (!INDEX_PERSISTENCE_ENABLED) return inMemoryStore;
+
   const storePath = defaultStorePath();
   if (!fs.existsSync(storePath)) return emptyStore();
-  return safeParseStore(fs.readFileSync(storePath, "utf8"));
+  try {
+    return safeParseStore(fs.readFileSync(storePath, "utf8"));
+  } catch {
+    return emptyStore();
+  }
 }
 
 function writeStoreSync(store: StoreState): void {
+  if (!INDEX_PERSISTENCE_ENABLED) {
+    inMemoryStore = store;
+    return;
+  }
+
   const storePath = defaultStorePath();
   fs.mkdirSync(path.dirname(storePath), { recursive: true });
   const tmp = `${storePath}.tmp`;
@@ -119,8 +136,19 @@ function withStoreMutation<T>(fn: (store: StoreState) => T): T {
   const store = readStoreSync();
   const result = fn(store);
   pruneStore(store);
-  writeStoreSync(store);
+  try {
+    writeStoreSync(store);
+  } catch (err) {
+    // Fallback to in-memory snapshots so index computation remains available
+    // in readonly/serverless runtimes where fs writes are disallowed.
+    console.warn("[index-store] persistence unavailable, using in-memory snapshots", err);
+    inMemoryStore = store;
+  }
   return result;
+}
+
+export function isIndexPersistenceEnabled(): boolean {
+  return INDEX_PERSISTENCE_ENABLED;
 }
 
 export function readStore(): {

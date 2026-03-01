@@ -109,7 +109,8 @@ export default function PulsePage() {
           </p>
           <p>
             Confidence is computed as data freshness × source agreement × feature coverage.
-            Snapshots persist every 5 minutes for stable 24h deltas and backtesting support.
+            Snapshot history updates every 5 minutes. Persistent storage is optional via
+            `INDEX_PERSISTENCE_ENABLED`; otherwise history is in-memory per runtime.
             Not financial advice.
           </p>
         </div>
