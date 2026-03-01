@@ -7,7 +7,6 @@ import type { PulseApiResponse } from "@/lib/types";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronLeft } from "lucide-react";
-import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -55,14 +54,6 @@ export default async function PulsePage() {
             <ChevronLeft className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Predpulse</span>
           </Link>
-          <div className="w-px h-4 bg-border shrink-0" />
-          <div className="flex items-center gap-2">
-            <PulseLogo size="sm" />
-            <span className="font-semibold text-sm tracking-tight">Pulse</span>
-            <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              Proprietary
-            </span>
-          </div>
           <div className="flex-1" />
           <ThemeToggle />
         </div>
@@ -70,8 +61,13 @@ export default async function PulsePage() {
 
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight">Predpulse</h1>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xl">
+          <div className="flex items-center gap-2.5 mb-1">
+            <h1 className="text-2xl font-bold tracking-tight">Pulse</h1>
+            <span className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              Proprietary
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-xl">
             A proprietary composite sentiment index across 8 market categories. Each score
             synthesizes probability, momentum, breadth, volume, and cross-platform consensus
             from both Polymarket and Kalshi.
