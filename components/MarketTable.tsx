@@ -122,22 +122,27 @@ export default function MarketTable({
     keepPreviousData: true,
   });
 
-  const markets = data?.markets ?? [];
+  const markets = useMemo(() => data?.markets ?? [], [data?.markets]);
 
-  // Derive stable token ID lists for WebSocket subscriptions (polymarket only)
-  const tokenIds = useMemo(
-    () => markets.filter((m) => m.source === "polymarket").map((m) => m.clobTokenId).filter(Boolean),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets.filter((m) => m.source === "polymarket").map((m) => m.clobTokenId).join(",")]
+  // Stable key strings — computed once per markets array identity change
+  const polyKey = useMemo(
+    () => markets.filter((m) => m.source === "polymarket").map((m) => m.clobTokenId).filter(Boolean).join(","),
+    [markets],
+  );
+  const kalshiKey = useMemo(
+    () => markets.filter((m) => m.source === "kalshi").map((m) => m.id).filter(Boolean).join(","),
+    [markets],
+  );
+  const manifoldKey = useMemo(
+    () => markets.filter((m) => m.source === "manifold").map((m) => m.id).filter(Boolean).join(","),
+    [markets],
   );
 
-  const kalshiTickers = useMemo(
-    () => markets.filter((m) => m.source === "kalshi").map((m) => m.id).filter(Boolean),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [markets.filter((m) => m.source === "kalshi").map((m) => m.id).join(",")]
-  );
+  const tokenIds = useMemo(() => (polyKey ? polyKey.split(",") : []), [polyKey]);
+  const kalshiTickers = useMemo(() => (kalshiKey ? kalshiKey.split(",") : []), [kalshiKey]);
+  const manifoldIds = useMemo(() => (manifoldKey ? manifoldKey.split(",") : []), [manifoldKey]);
 
-  const { livePrices, status: wsStatus } = useMarketSocket(tokenIds, kalshiTickers);
+  const { livePrices, status: wsStatus } = useMarketSocket(tokenIds, kalshiTickers, manifoldIds);
 
   const handleSortChange = useCallback((newSort: SortMode) => {
     setSort(newSort);

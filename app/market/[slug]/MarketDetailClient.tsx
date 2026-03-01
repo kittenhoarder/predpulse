@@ -37,7 +37,7 @@ export default function MarketDetailClient({ market }: MarketDetailClientProps) 
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={market.image}
-                alt=""
+                alt={market.eventTitle || market.question}
                 className="w-12 h-12 rounded-xl object-cover shrink-0 border border-border mt-0.5"
               />
             )}

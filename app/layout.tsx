@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"),
+  alternates: { canonical: "/" },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   title: "Predpulse — Prediction Market Intelligence",
   description:
@@ -14,6 +17,7 @@ export const metadata: Metadata = {
     title: "Predpulse — Prediction Market Intelligence",
     description: "Real-time movers, gainers, and the Predpulse sentiment index across Polymarket & Kalshi.",
     type: "website",
+    url: "/",
   },
   twitter: {
     card: "summary_large_image",

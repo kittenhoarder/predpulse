@@ -5,6 +5,7 @@ import type { LivePrice } from "@/lib/types";
 
 const POLY_WS_URL = "wss://ws-subscriptions-clob.polymarket.com/ws/market";
 const KALSHI_WS_URL = "wss://api.elections.kalshi.com/trade-api/ws/v2";
+const MANIFOLD_WS_URL = "wss://api.manifold.markets/ws";
 const PING_INTERVAL_MS = 10_000;
 const RECONNECT_DELAYS_MS = [2_000, 4_000, 8_000, 16_000, 30_000];
 
@@ -13,6 +14,11 @@ export type SocketStatus = "connecting" | "open" | "closed";
 interface UseMarketSocketResult {
   livePrices: Map<string, LivePrice>;
   status: SocketStatus;
+}
+
+interface ManifoldBetMessage {
+  contractId: string;
+  probAfter: number;
 }
 
 /**
@@ -81,20 +87,22 @@ function createReconnectingSocket(params: {
 }
 
 /**
- * Subscribes to both Polymarket CLOB and Kalshi WebSocket feeds for live price updates.
+ * Subscribes to Polymarket CLOB, Kalshi, and Manifold WebSocket feeds for live price updates.
  * Returns a unified Map<marketId, LivePrice> and a combined SocketStatus.
- * Re-subscribes when tokenIds (Polymarket) or kalshiTickers change.
+ * Re-subscribes when tokenIds (Polymarket), kalshiTickers, or manifoldIds change.
  * No-ops server-side.
  */
 export function useMarketSocket(
   tokenIds: string[],
-  kalshiTickers: string[] = []
+  kalshiTickers: string[] = [],
+  manifoldIds: string[] = []
 ): UseMarketSocketResult {
   // Ref map updated on each WS message; state flushed via rAF to batch renders
   const priceRef = useRef<Map<string, LivePrice>>(new Map());
   const [livePrices, setLivePrices] = useState<Map<string, LivePrice>>(new Map());
   const [polyStatus, setPolyStatus] = useState<SocketStatus>("closed");
   const [kalshiStatus, setKalshiStatus] = useState<SocketStatus>("closed");
+  const [manifoldStatus, setManifoldStatus] = useState<SocketStatus>("closed");
 
   const mountedRef = useRef(true);
   const rafRef = useRef<number | null>(null);
@@ -102,9 +110,12 @@ export function useMarketSocket(
   tokenIdsRef.current = tokenIds;
   const kalshiTickersRef = useRef(kalshiTickers);
   kalshiTickersRef.current = kalshiTickers;
+  const manifoldIdsRef = useRef(manifoldIds);
+  manifoldIdsRef.current = manifoldIds;
 
   const polySocketRef = useRef<{ close: () => void } | null>(null);
   const kalshiSocketRef = useRef<{ close: () => void } | null>(null);
+  const manifoldSocketRef = useRef<{ close: () => void } | null>(null);
 
   const scheduleFlush = useCallback(() => {
     if (rafRef.current === null) {
@@ -203,21 +214,56 @@ export function useMarketSocket(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kalshiTickers.join(",")]);
 
+  // Manifold connection
+  useEffect(() => {
+    if (typeof window === "undefined" || manifoldIds.length === 0) return;
+
+    manifoldSocketRef.current?.close();
+    manifoldSocketRef.current = createReconnectingSocket({
+      url: MANIFOLD_WS_URL,
+      onOpen: (ws) => {
+        // Subscribe to per-market new-bet events for all visible Manifold markets
+        for (const id of manifoldIdsRef.current) {
+          ws.send(JSON.stringify({ type: "subscribe", topic: `contract/${id}/new-bet` }));
+        }
+      },
+      onMessage: (data) => {
+        // Manifold WS message shape: { type: "new-bet", contractId, probAfter, ... }
+        const msg = data as Record<string, unknown>;
+        if (msg.type === "new-bet") {
+          const bet = msg as unknown as ManifoldBetMessage;
+          if (bet.contractId && typeof bet.probAfter === "number") {
+            updatePrice(bet.contractId, Math.round(bet.probAfter * 10000) / 100);
+          }
+        }
+      },
+      onStatusChange: setManifoldStatus,
+      mountedRef,
+    });
+
+    return () => {
+      manifoldSocketRef.current?.close();
+      manifoldSocketRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manifoldIds.join(",")]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
       polySocketRef.current?.close();
       kalshiSocketRef.current?.close();
+      manifoldSocketRef.current?.close();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
 
-  // Combined status: "open" if either socket is open
+  // Combined status: "open" if any socket is open
   const status: SocketStatus =
-    polyStatus === "open" || kalshiStatus === "open"
+    polyStatus === "open" || kalshiStatus === "open" || manifoldStatus === "open"
       ? "open"
-      : polyStatus === "connecting" || kalshiStatus === "connecting"
+      : polyStatus === "connecting" || kalshiStatus === "connecting" || manifoldStatus === "connecting"
         ? "connecting"
         : "closed";
 

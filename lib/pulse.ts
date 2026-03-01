@@ -118,15 +118,20 @@ function computeCategoryPulse(
   // --- S_consensus: penalize cross-platform disagreement (avg gap across all source pairs) ---
   let S_consensus = 100;
   const sourceAvgs: number[] = [];
-  if (polyMarkets.length > 0) {
-    sourceAvgs.push(polyMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / polyMarkets.length);
-  }
-  if (kalshiMarkets.length > 0) {
-    sourceAvgs.push(kalshiMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / kalshiMarkets.length);
-  }
-  if (manifoldMarkets.length > 0) {
-    sourceAvgs.push(manifoldMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / manifoldMarkets.length);
-  }
+  const polyAvg = polyMarkets.length > 0
+    ? polyMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / polyMarkets.length
+    : null;
+  const kalshiAvg = kalshiMarkets.length > 0
+    ? kalshiMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / kalshiMarkets.length
+    : null;
+  const manifoldAvg = manifoldMarkets.length > 0
+    ? manifoldMarkets.reduce((acc, m) => acc + m.currentPrice, 0) / manifoldMarkets.length
+    : null;
+
+  if (polyAvg !== null) sourceAvgs.push(polyAvg);
+  if (kalshiAvg !== null) sourceAvgs.push(kalshiAvg);
+  if (manifoldAvg !== null) sourceAvgs.push(manifoldAvg);
+
   if (sourceAvgs.length >= 2) {
     let totalGap = 0;
     let pairs = 0;
@@ -140,14 +145,81 @@ function computeCategoryPulse(
     S_consensus = clamp(100 - avgGap * 5, 0, 100);
   }
 
-  const score = Math.round(
-    0.30 * S_prob +
-    0.20 * S_momentum +
-    0.15 * S_breadth +
-    0.20 * S_volWeighted +
-    0.10 * S_decay +
-    0.05 * S_consensus
+  // --- S_orderflow: OI-weighted average depthScore across markets with orderbook data ---
+  // depthScore > 50 = more bid-side depth = buy pressure
+  const marketsWithOB = markets.filter((m) => m.orderbookDepth !== undefined);
+  let S_orderflow: number | undefined;
+  if (marketsWithOB.length > 0) {
+    let sumOIob = 0;
+    let sumOIFlow = 0;
+    for (const m of marketsWithOB) {
+      const oi = m.liquidity > 0 ? m.liquidity : 1;
+      sumOIob += oi;
+      sumOIFlow += oi * (m.orderbookDepth!.depthScore);
+    }
+    S_orderflow = sumOIob > 0 ? clamp(sumOIFlow / sumOIob, 0, 100) : undefined;
+  }
+
+  // --- S_openInterest: fraction of Polymarket markets where true OI > liquidity proxy ---
+  // Signals new capital entering — conviction signal
+  const polyWithOI = polyMarkets.filter(
+    (m) => m.openInterest !== undefined && m.openInterest > 0
   );
+  let S_openInterest: number | undefined;
+  if (polyWithOI.length > 0) {
+    const higherCount = polyWithOI.filter((m) => m.openInterest! > m.liquidity).length;
+    S_openInterest = Math.round((higherCount / polyWithOI.length) * 100);
+  }
+
+  // --- S_manifoldDivergence: Manifold vs regulated-exchange avg price gap ---
+  // A leading indicator: when Manifold diverges, regulated markets tend to catch up.
+  // Score = 100 when aligned, lower when divergent.
+  let S_manifoldDivergence: number | undefined;
+  if (manifoldAvg !== null && (polyAvg !== null || kalshiAvg !== null)) {
+    const regulatedAvg = [polyAvg, kalshiAvg].filter((v): v is number => v !== null);
+    const regMean = regulatedAvg.reduce((s, v) => s + v, 0) / regulatedAvg.length;
+    const gap = Math.abs(manifoldAvg - regMean);
+    S_manifoldDivergence = clamp(100 - gap * 3, 0, 100);
+  }
+
+  // --- Composite score with updated weights ---
+  // Base signals always present; new signals shift weight from base when available
+  let score: number;
+  if (S_orderflow !== undefined && S_openInterest !== undefined && S_manifoldDivergence !== undefined) {
+    // Full formula: all signals present
+    score = Math.round(
+      0.25 * S_prob +
+      0.15 * S_momentum +
+      0.10 * S_breadth +
+      0.15 * S_volWeighted +
+      0.08 * S_decay +
+      0.07 * S_consensus +
+      0.10 * S_orderflow +
+      0.05 * S_openInterest +
+      0.05 * S_manifoldDivergence
+    );
+  } else if (S_manifoldDivergence !== undefined) {
+    // Manifold divergence always computable when Manifold + (Poly|Kalshi) present
+    score = Math.round(
+      0.28 * S_prob +
+      0.18 * S_momentum +
+      0.12 * S_breadth +
+      0.18 * S_volWeighted +
+      0.10 * S_decay +
+      0.09 * S_consensus +
+      0.05 * S_manifoldDivergence
+    );
+  } else {
+    // Original formula — used when only one source is present
+    score = Math.round(
+      0.30 * S_prob +
+      0.20 * S_momentum +
+      0.15 * S_breadth +
+      0.20 * S_volWeighted +
+      0.10 * S_decay +
+      0.05 * S_consensus
+    );
+  }
 
   // Top 5 markets by open interest
   const topMarkets = [...markets]
@@ -172,6 +244,9 @@ function computeCategoryPulse(
       volWeighted: Math.round(S_volWeighted),
       decay: Math.round(S_decay),
       consensus: Math.round(S_consensus),
+      ...(S_orderflow !== undefined && { orderflow: Math.round(S_orderflow) }),
+      ...(S_openInterest !== undefined && { openInterest: Math.round(S_openInterest) }),
+      ...(S_manifoldDivergence !== undefined && { manifoldDivergence: Math.round(S_manifoldDivergence) }),
     },
     marketCount: {
       polymarket: polyMarkets.length,
@@ -185,30 +260,21 @@ function computeCategoryPulse(
 }
 
 /**
- * Record an hourly snapshot for a category if enough time has elapsed.
- * Capped at MAX_SNAPSHOTS entries; oldest dropped first (ring buffer).
+ * Flush snapshots for all categories at the same instant to keep histories aligned.
+ * Capped at MAX_SNAPSHOTS entries per category; oldest dropped first (ring buffer).
  */
-function maybeRecordSnapshot(category: string, score: number): void {
-  const now = Date.now();
-  if (now - lastSnapshotAt < SNAPSHOT_INTERVAL_MS) return;
-
-  const entry: PulseSnapshot = {
-    timestamp: new Date(now).toISOString(),
-    score,
-  };
-  const history = snapshotHistory.get(category) ?? [];
-  history.push(entry);
-  if (history.length > MAX_SNAPSHOTS) history.shift();
-  snapshotHistory.set(category, history);
-}
-
-/** Flush snapshots for all categories at the same instant to keep histories aligned. */
 function maybeFlushAllSnapshots(indices: Array<{ category: string; score: number }>): void {
   const now = Date.now();
   if (now - lastSnapshotAt < SNAPSHOT_INTERVAL_MS) return;
   lastSnapshotAt = now;
+
+  const timestamp = new Date(now).toISOString();
   for (const { category, score } of indices) {
-    maybeRecordSnapshot(category, score);
+    const entry: PulseSnapshot = { timestamp, score };
+    const history = snapshotHistory.get(category) ?? [];
+    history.push(entry);
+    if (history.length > MAX_SNAPSHOTS) history.shift();
+    snapshotHistory.set(category, history);
   }
 }
 
