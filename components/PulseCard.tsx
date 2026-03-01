@@ -144,15 +144,13 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
             <div className="space-y-1.5">
               {(
                 [
-                  { key: "prob",               label: "Wtd Prob",    pct: "25%" },
-                  { key: "volWeighted",         label: "Vol-Wtd",     pct: "15%" },
-                  { key: "momentum",            label: "Momentum",    pct: "15%" },
-                  { key: "breadth",             label: "Breadth",     pct: "10%" },
-                  { key: "decay",               label: "Decay",       pct: "8%"  },
-                  { key: "consensus",           label: "Consensus",   pct: "7%"  },
-                  { key: "orderflow",           label: "Orderflow",   pct: "10%" },
-                  { key: "openInterest",        label: "OI Signal",   pct: "5%"  },
-                  { key: "manifoldDivergence",  label: "Mf Diverge",  pct: "5%"  },
+                  { key: "momentum",     label: "Momentum",     pct: "25%" },
+                  { key: "flow",         label: "Flow",         pct: "20%" },
+                  { key: "breadth",      label: "Breadth",      pct: "15%" },
+                  { key: "acceleration", label: "Accel",        pct: "15%" },
+                  { key: "level",        label: "Level",        pct: "10%" },
+                  { key: "orderflow",    label: "Orderflow",    pct: "10%" },
+                  { key: "smartMoney",   label: "Smart $",      pct: "5%"  },
                 ] as { key: keyof typeof index.signals; label: string; pct: string }[]
               )
               .filter(({ key }) => index.signals[key] !== undefined)

@@ -105,12 +105,38 @@ components/
 
 ### `PulseIndex` (`lib/types.ts`)
 
-Eight category indices computed by `lib/pulse.ts` from all three sources. Each has:
+Eight category indices computed by `lib/pulse.ts` from all three sources (minimum 3 markets per category). Each has:
 - `score` 0–100, `band` (Extreme Bearish → Extreme Bullish)
-- `signals`: prob, momentum, breadth, volWeighted, decay, consensus (weighted composite)
+- `signals`: 7-signal composite measuring sentiment through orthogonal dimensions
 - `marketCount`: `{ polymarket, kalshi, manifold, total }`
-- `topMarkets`: top 3 by liquidity across all sources
-- `delta24h`, `sparkline7d` for trend display
+- `topMarkets`: top 5 by OI across all sources
+- `delta24h`, `history[]` for sparkline display
+
+#### Pulse v2 Formula
+
+```
+Pulse = w_momentum     × S_momentum       (25%)
+      + w_flow         × S_flow            (20%)
+      + w_breadth      × S_breadth         (15%)
+      + w_acceleration × S_acceleration    (15%)
+      + w_level        × S_level           (10%)
+      + w_orderflow    × S_orderflow       (10%, optional)
+      + w_smartMoney   × S_smartMoney       (5%, optional)
+```
+
+When optional signals are absent, their weight is redistributed proportionally to present signals. Default effective weights (no orderbook/smart money flags): momentum 29%, flow 24%, breadth 18%, acceleration 18%, level 12%.
+
+| Signal | Measures | Input |
+|---|---|---|
+| `momentum` | 7d directional shift | OI-weighted avg `oneWeekChange`, excludes Manifold |
+| `flow` | Money-backed direction | Volume-weighted avg `oneDayChange` |
+| `breadth` | Width of bullish move | Volume × magnitude weighted bullish fraction |
+| `acceleration` | Trend intensifying/fading | 24h rate vs 7d daily rate (2nd derivative) |
+| `level` | Probability context anchor | Volume-weighted avg `currentPrice` |
+| `orderflow` | Orderbook bid/ask bias | OI-weighted avg `depthScore` (optional, `ENABLE_ORDERBOOK_DEPTH=1`) |
+| `smartMoney` | Whale directional bias | YES/NO share ratio from `topHolders` (optional, `ENABLE_SMART_MONEY=1`) |
+
+Rollback: set `PULSE_V1_ALGORITHM=1` to revert to the original formula.
 
 ### `SortMode`
 

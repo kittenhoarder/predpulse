@@ -205,16 +205,13 @@ export interface PulseIndex {
   delta24h: number;
   // Component signal scores (each 0–100) for transparency display
   signals: {
-    prob: number;
-    momentum: number;
-    breadth: number;
-    volWeighted: number;
-    decay: number;
-    consensus: number;
-    // New signals (present when relevant data is available)
-    orderflow?: number;         // net buy-side depth from orderbook (Poly + Kalshi)
-    openInterest?: number;      // OI-growth conviction signal (Poly smart money)
-    manifoldDivergence?: number; // Manifold vs (Poly+Kalshi) price gap leading indicator
+    momentum: number;           // OI-weighted 7d price change (direction)
+    flow: number;               // volume-weighted 24h price change (money-backed direction)
+    breadth: number;            // volume-magnitude-weighted bullish breadth
+    acceleration: number;       // 24h rate vs 7d rate — is the move intensifying?
+    level: number;              // volume-weighted avg probability (context anchor)
+    orderflow?: number;         // bid/ask depth imbalance from orderbook (optional)
+    smartMoney?: number;        // directional whale YES/NO bias (optional)
   };
   // Number of constituent markets by source
   marketCount: { polymarket: number; kalshi: number; manifold: number; total: number };
