@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
+  icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   title: "Predpulse — Prediction Market Intelligence",
   description:
     "Real-time dashboard tracking prediction market movers across Polymarket, Kalshi & Manifold. Featuring the Predpulse proprietary category sentiment index.",

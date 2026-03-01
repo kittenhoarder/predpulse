@@ -34,7 +34,10 @@ export default async function HomePage() {
             <span className="font-semibold text-sm tracking-tight">Predpulse</span>
           </div>
 
-          {/* Pulse nav link */}
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Pulse nav link — subtle, right-aligned */}
           <Link
             href="/pulse"
             className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50 shrink-0"
@@ -42,9 +45,6 @@ export default async function HomePage() {
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             Pulse
           </Link>
-
-          {/* Spacer */}
-          <div className="flex-1" />
 
           {/* Market count */}
           <span className="text-xs text-muted-foreground/60 hidden sm:block tabular-nums shrink-0">
