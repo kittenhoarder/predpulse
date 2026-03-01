@@ -3,6 +3,9 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 /**
  * Fetch with an AbortController-based timeout.
  * On timeout the request is aborted and the promise rejects.
+ *
+ * We force `cache: "no-store"` because several upstream market payloads exceed
+ * Next.js dev data-cache limits; no-store avoids cache-write failures on large responses.
  */
 export async function fetchWithTimeout(
   url: string,
@@ -12,7 +15,11 @@ export async function fetchWithTimeout(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetch(url, {
+      cache: "no-store",
+      ...init,
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
   }

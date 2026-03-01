@@ -1,5 +1,6 @@
 import type { ProcessedMarket } from "./types";
 import { batchParallel } from "./fetch-utils";
+import { inferPolarity } from "./polarity";
 
 const MANIFOLD_API = "https://api.manifold.markets";
 const BETS_BATCH_SIZE = 20;
@@ -210,6 +211,7 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
         description: extractDescription(m.description),
         resolutionSource: m.url,
         competitive: Math.min(prob, 1 - prob) * 2,
+        polarity: inferPolarity(m.question),
       });
     } else {
       // MULTIPLE_CHOICE — represent as a multi-outcome market
@@ -250,6 +252,7 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
         description: extractDescription(m.description),
         resolutionSource: m.url,
         competitive,
+        polarity: inferPolarity(m.question),
       });
     }
   }

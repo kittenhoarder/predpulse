@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { fetchAllSources, getAllMarkets, getMarkets } from "./get-markets";
+import { fetchAllSources, getAllMarkets, getMarkets, getCacheStatus } from "./get-markets";
 import type { AllSourcesResult, GetMarketsOptions } from "./get-markets";
 import type { ProcessedMarket, MarketsApiResponse } from "./types";
 
@@ -23,4 +23,13 @@ export async function streamAllMarkets(): Promise<ProcessedMarket[]> {
 export async function streamGetMarkets(opts: GetMarketsOptions = {}): Promise<MarketsApiResponse> {
   const sources = await getCachedSources();
   return getMarkets(opts, sources);
+}
+
+/**
+ * Returns true only when ALL three source caches are warm (non-expired).
+ * Used by page.tsx to decide whether to do server-side streaming fetch
+ * or defer to client-side SWR (avoids blocking the dev server on cold starts).
+ */
+export function isCacheWarm(): boolean {
+  return getCacheStatus().allWarm;
 }

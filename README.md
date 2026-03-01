@@ -103,40 +103,34 @@ components/
 | `description`, `resolutionSource`, `endDate` | All sources | Manifold ProseMirror descriptions are dropped |
 | `competitive` | Computed | 0–1 market heat score |
 
-### `PulseIndex` (`lib/types.ts`)
+### `OperatorIndex` / `PulseIndex` (`lib/types.ts`)
 
-Eight category indices computed by `lib/pulse.ts` from all three sources (minimum 3 markets per category). Each has:
-- `score` 0–100, `band` (Extreme Bearish → Extreme Bullish)
-- `signals`: 7-signal composite measuring sentiment through orthogonal dimensions
-- `marketCount`: `{ polymarket, kalshi, manifold, total }`
-- `topMarkets`: top 5 by OI across all sources
-- `delta24h`, `history[]` for sparkline display
+Operator indices are computed by `lib/indices.ts` and exposed via `/api/indices`.  
+Legacy Pulse (`/api/pulse`) is now a compatibility alias to the `directional` family.
 
-#### Pulse v2 Formula
+Index families:
+- `directional`: polarity-adjusted directional pressure (forecast oriented)
+- `liquidity`: spread/depth/volatility stress
+- `divergence`: cross-venue disagreement/basis
+- `certainty`: conviction/tightness/participation confidence context
+
+Directional formula:
 
 ```
-Pulse = w_momentum     × S_momentum       (25%)
-      + w_flow         × S_flow            (20%)
-      + w_breadth      × S_breadth         (15%)
-      + w_acceleration × S_acceleration    (15%)
-      + w_level        × S_level           (10%)
-      + w_orderflow    × S_orderflow       (10%, optional)
-      + w_smartMoney   × S_smartMoney       (5%, optional)
+Directional = w_momentum     × S_momentum      (30%)
+            + w_flow         × S_flow          (25%)
+            + w_breadth      × S_breadth       (15%)
+            + w_acceleration × S_acceleration  (15%)
+            + w_orderflow    × S_orderflow     (10%, gated)
+            + w_smartMoney   × S_smartMoney     (5%, gated)
 ```
 
-When optional signals are absent, their weight is redistributed proportionally to present signals. Default effective weights (no orderbook/smart money flags): momentum 29%, flow 24%, breadth 18%, acceleration 18%, level 12%.
+Optional signals are included only when BOTH conditions hold:
+- at least 5 markets in-category with that signal
+- at least 30% OI coverage for that signal
 
-| Signal | Measures | Input |
-|---|---|---|
-| `momentum` | 7d directional shift | OI-weighted avg `oneWeekChange`, excludes Manifold |
-| `flow` | Money-backed direction | Volume-weighted avg `oneDayChange` |
-| `breadth` | Width of bullish move | Volume × magnitude weighted bullish fraction |
-| `acceleration` | Trend intensifying/fading | 24h rate vs 7d daily rate (2nd derivative) |
-| `level` | Probability context anchor | Volume-weighted avg `currentPrice` |
-| `orderflow` | Orderbook bid/ask bias | OI-weighted avg `depthScore` (optional, `ENABLE_ORDERBOOK_DEPTH=1`) |
-| `smartMoney` | Whale directional bias | YES/NO share ratio from `topHolders` (optional, `ENABLE_SMART_MONEY=1`) |
-
-Rollback: set `PULSE_V1_ALGORITHM=1` to revert to the original formula.
+Signal normalization uses rolling 30-day robust quantiles (with fixed-range fallback when history is sparse).
+Confidence is computed as: `freshness × sourceAgreement × featureCoverage`.
 
 ### `SortMode`
 
@@ -160,7 +154,45 @@ Returns `MarketsApiResponse`: `{ markets, cachedAt, totalMarkets, fromCache }`.
 
 ### `GET /api/pulse`
 
-Returns `PulseApiResponse`: `{ indices: PulseIndex[], computedAt }`. Cached 60 s at CDN edge.
+Returns legacy-compatible `PulseApiResponse`: `{ indices: PulseIndex[], computedAt }`.  
+Backed by the directional family in the new engine. Includes deprecation headers.
+
+### `GET /api/indices`
+
+| Param | Default | Notes |
+|---|---|---|
+| `family` | `all` | `all` \| `directional` \| `liquidity` \| `divergence` \| `certainty` |
+| `horizon` | `24h` | `24h` \| `7d` |
+| `sourceScope` | `core` | `core` \| `all` \| `polymarket` \| `kalshi` \| `manifold` |
+
+Returns `IndicesApiResponse`: `{ indices, family, horizon, sourceScope, computedAt }`.
+
+### `GET /api/indices/backtest`
+
+Returns directional forecast-quality metrics from stored snapshots joined to ingested resolved outcomes:
+`{ metrics: { brier, logLoss, calibrationSlope, directionalAuc24h, sampleSize }, joinedOutcomes, totalOutcomes, coveragePct }`.
+
+### `POST /api/indices/outcomes`
+
+Ingests resolved outcomes for backtesting joins.
+
+Request body:
+
+```json
+{
+  "rows": [
+    {
+      "marketId": "ABC-123",
+      "source": "kalshi",
+      "category": "economics",
+      "polarity": 1,
+      "outcomeYes": 1,
+      "resolvedAt": "2026-03-01T00:00:00.000Z",
+      "note": "optional"
+    }
+  ]
+}
+```
 
 ### `GET /api/og`
 

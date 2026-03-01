@@ -18,6 +18,9 @@ export async function GET() {
     return NextResponse.json(body, {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Deprecation": "true",
+        "Sunset": new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString(),
+        "Link": '</api/indices?family=directional>; rel=\"successor-version\"',
       },
     });
   } catch (err) {

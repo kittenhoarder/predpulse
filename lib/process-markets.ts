@@ -1,6 +1,7 @@
 import type { GammaEvent, GammaMarket, GammaTag, ProcessedMarket } from "./types";
 import type { PolymarketOrderbookDepth, PolymarketSmartMoney } from "./gamma";
 import { computeDepthScore } from "./orderbook";
+import { inferPolarity } from "./polarity";
 
 /**
  * Build a slug→label lookup from the live Gamma /tags response.
@@ -141,6 +142,7 @@ function processMarket(
     openInterest: sm?.openInterest,
     smartMoneyScore: sm?.smartMoneyScore,
     topHolders: sm?.topHolders,
+    polarity: inferPolarity(market.question),
   };
 }
 

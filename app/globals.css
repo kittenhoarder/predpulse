@@ -78,7 +78,28 @@
 }
 
 @layer utilities {
+  @keyframes pulse-ticker {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .pulse-ticker-track {
+    animation: pulse-ticker 28s linear infinite;
+  }
+
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  .duration-350 {
+    transition-duration: 350ms;
+  }
+
+  .duration-400 {
+    transition-duration: 400ms;
   }
 }

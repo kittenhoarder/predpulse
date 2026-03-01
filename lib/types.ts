@@ -176,6 +176,9 @@ export interface ProcessedMarket {
   smartMoneyScore?: number;
   // Top position holders (Polymarket only)
   topHolders?: { address: string; shares: number; side: "YES" | "NO" }[];
+  // Directional polarity for category-up interpretation:
+  // +1 => YES means category-up, -1 => YES means category-down
+  polarity?: 1 | -1;
 }
 
 // Live price overlay from WebSocket (best_bid_ask events)
@@ -222,6 +225,68 @@ export interface PulseIndex {
   history: PulseSnapshot[];
   // ISO timestamp of computation
   computedAt: string;
+  // Forecast-quality confidence (0-100)
+  confidence?: number;
+  // Coverage diagnostics for optional signals and source support
+  coverage?: IndexCoverage;
+  // Family/horizon metadata (Pulse is directional alias)
+  family?: IndexFamily;
+  horizon?: IndexHorizon;
+  diagnostics?: IndexDiagnostics;
+}
+
+export type IndexFamily = "directional" | "liquidity" | "divergence" | "certainty";
+
+export type IndexHorizon = "24h" | "7d";
+
+export type IndexSourceScope = "core" | "all" | "polymarket" | "kalshi" | "manifold";
+
+export interface IndexCoverage {
+  // Share of category markets used in core scoring, 0-100
+  marketCoverage: number;
+  // Share of OI carrying each optional signal, 0-100
+  oiCoverage: {
+    orderflow: number;
+    smartMoney: number;
+  };
+  // Share of directional weight that is active, 0-100
+  featureCoverage: number;
+}
+
+export interface IndexDiagnostics {
+  freshness: number; // 0-100
+  sourceAgreement: number; // 0-100
+  featureCoverage: number; // 0-100
+  includedSignals: string[];
+  excludedSignals: string[];
+  rawSignals: Record<string, number>;
+  notes?: string[];
+}
+
+export interface OperatorIndex {
+  category: string;
+  label: string;
+  family: IndexFamily;
+  horizon: IndexHorizon;
+  sourceScope: IndexSourceScope;
+  score: number;
+  confidence: number;
+  delta24h: number;
+  coverage: IndexCoverage;
+  diagnostics: IndexDiagnostics;
+  signals: Record<string, number>;
+  marketCount: { polymarket: number; kalshi: number; manifold: number; total: number };
+  topMarkets: Array<{ id: string; question: string; currentPrice: number; source: "polymarket" | "kalshi" | "manifold" }>;
+  history: PulseSnapshot[];
+  computedAt: string;
+}
+
+export interface IndicesApiResponse {
+  indices: OperatorIndex[];
+  family: IndexFamily | "all";
+  horizon: IndexHorizon;
+  sourceScope: IndexSourceScope;
+  computedAt: string;
 }
 
 // Shape returned by GET /api/pulse
@@ -237,6 +302,12 @@ export interface MarketsApiResponse {
   cachedAt: string;
   totalMarkets: number;
   fromCache: boolean;
+  // Market counts by source for the current filtered set (pre-pagination)
+  sourceBreakdown: {
+    polymarket: number;
+    kalshi: number;
+    manifold: number;
+  };
 }
 
 export type SortMode =

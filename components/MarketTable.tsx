@@ -160,6 +160,7 @@ export default function MarketTable({
   }, []);
 
   const totalMarkets = data?.totalMarkets ?? 0;
+  const sourceBreakdown = data?.sourceBreakdown;
   const hasMore = offset + PAGE_LIMIT < totalMarkets;
   const hasPrev = offset > 0;
 
@@ -168,6 +169,10 @@ export default function MarketTable({
     : null;
 
   const emptyWatchlist = sort === "watchlist" && watchlistIds.length === 0;
+  const activeSourceCount = sourceBreakdown
+    ? [sourceBreakdown.polymarket, sourceBreakdown.kalshi, sourceBreakdown.manifold].filter((n) => n > 0).length
+    : 0;
+  const showPartialHint = source === "all" && !isLoading && !!sourceBreakdown && totalMarkets > 0 && activeSourceCount < 3;
 
   return (
     <div className="flex flex-col">
@@ -348,6 +353,12 @@ export default function MarketTable({
         )}
       </div>
 
+      {showPartialHint && sourceBreakdown && (
+        <div className="mb-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+          Partial source coverage (cold start): P {sourceBreakdown.polymarket} · K {sourceBreakdown.kalshi} · M {sourceBreakdown.manifold}
+        </div>
+      )}
+
       {/* Error state */}
       {error && (
         <div className="mb-2 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
@@ -365,15 +376,7 @@ export default function MarketTable({
         <div className="rounded-xl border border-border overflow-hidden">
           {/* table-fixed prevents columns reflowing when expansion rows are inserted */}
           <Table className="table-fixed min-w-[640px]">
-            <colgroup>
-              <col className="w-12" />   {/* # — widened to fit 3-digit ranks */}
-              <col />                    {/* Market — takes remaining width */}
-              <col className="w-24" />   {/* Probability */}
-              <col className="w-24" />   {/* 24h Change */}
-              <col className="w-24" />   {/* 24h Volume */}
-              <col className="w-24" />   {/* Liquidity */}
-              <col className="w-16" />   {/* Trade */}
-            </colgroup>
+            <colgroup><col className="w-12" /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /><col className="w-24" /><col className="w-16" /></colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="text-xs">#</TableHead>

@@ -144,11 +144,11 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
             <div className="space-y-1.5">
               {(
                 [
-                  { key: "momentum",     label: "Momentum",     pct: "25%" },
-                  { key: "flow",         label: "Flow",         pct: "20%" },
+                  { key: "momentum",     label: "Momentum",     pct: "30%" },
+                  { key: "flow",         label: "Flow",         pct: "25%" },
                   { key: "breadth",      label: "Breadth",      pct: "15%" },
                   { key: "acceleration", label: "Accel",        pct: "15%" },
-                  { key: "level",        label: "Level",        pct: "10%" },
+                  { key: "level",        label: "Certainty",    pct: "ctx" },
                   { key: "orderflow",    label: "Orderflow",    pct: "10%" },
                   { key: "smartMoney",   label: "Smart $",      pct: "5%"  },
                 ] as { key: keyof typeof index.signals; label: string; pct: string }[]

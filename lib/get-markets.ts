@@ -20,6 +20,9 @@ const PAGE_LIMIT = 100;
 
 const CACHE_SOFT_TTL_MS = 240_000; // 4 min — trigger background refresh
 const CACHE_HARD_TTL_MS = 300_000; // 5 min — block and fetch if exceeded
+// Maximum time to wait on a cold fetch before returning [] (lets other sources
+// still render; the slow source retries on the next request).
+const COLD_FETCH_TIMEOUT_MS = 20_000; // 20s
 
 interface SourceCacheEntry {
   data: ProcessedMarket[];
@@ -68,14 +71,37 @@ async function fetchWithSWR(
     return entry.data;
   }
 
-  // Fully expired (or first load) — block on fetch, deduplicating concurrent callers
-  if (inflightFetch.has(key)) return inflightFetch.get(key)!;
+  // Fully expired (or first load) — block on fetch, deduplicating concurrent callers.
+  // Race against COLD_FETCH_TIMEOUT_MS: if the source is still slow, return []
+  // so other sources can render. The inflight promise keeps running and will
+  // populate the cache when it eventually resolves.
+  if (inflightFetch.has(key)) {
+    const timeout = new Promise<ProcessedMarket[]>((resolve) =>
+      setTimeout(() => {
+        console.warn(`[get-markets] ${key} timed out after ${COLD_FETCH_TIMEOUT_MS}ms (inflight)`);
+        resolve([]);
+      }, COLD_FETCH_TIMEOUT_MS)
+    );
+    return Promise.race([
+      inflightFetch.get(key)!,
+      timeout,
+    ]);
+  }
 
   const promise = fetcher()
     .then((data) => { setCache(key, data); return data; })
     .finally(() => inflightFetch.delete(key));
   inflightFetch.set(key, promise);
-  return promise;
+  const timeout = new Promise<ProcessedMarket[]>((resolve) =>
+    setTimeout(() => {
+      console.warn(`[get-markets] ${key} timed out after ${COLD_FETCH_TIMEOUT_MS}ms (cold)`);
+      resolve([]);
+    }, COLD_FETCH_TIMEOUT_MS)
+  );
+  return Promise.race([
+    promise,
+    timeout,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -136,6 +162,62 @@ export function sortMarkets(
   }
 }
 
+export function interlaceBySourceWeighted(
+  markets: ProcessedMarket[],
+  sourceOrder: ProcessedMarket["source"][] = ["polymarket", "kalshi", "manifold"],
+): ProcessedMarket[] {
+  if (markets.length <= 2) return markets;
+
+  const queues = new Map<ProcessedMarket["source"], ProcessedMarket[]>();
+  for (const source of sourceOrder) queues.set(source, []);
+  for (const market of markets) {
+    if (!queues.has(market.source)) queues.set(market.source, []);
+    queues.get(market.source)!.push(market);
+  }
+
+  const picked = new Map<ProcessedMarket["source"], number>();
+  for (const source of sourceOrder) picked.set(source, 0);
+  for (const source of Array.from(queues.keys())) {
+    if (!picked.has(source)) picked.set(source, 0);
+  }
+
+  const total = markets.length;
+  const out: ProcessedMarket[] = [];
+
+  while (out.length < total) {
+    let remainingTotal = 0;
+    for (const q of Array.from(queues.values())) remainingTotal += q.length;
+    if (remainingTotal === 0) break;
+
+    let chosen: ProcessedMarket["source"] | null = null;
+    let bestDeficit = Number.NEGATIVE_INFINITY;
+
+    const allSources = [...sourceOrder, ...Array.from(queues.keys()).filter((s) => !sourceOrder.includes(s))];
+    for (const source of allSources) {
+      const q = queues.get(source);
+      if (!q || q.length === 0) continue;
+
+      const remaining = q.length;
+      const share = remaining / remainingTotal;
+      const ideal = (out.length + 1) * share;
+      const actual = picked.get(source) ?? 0;
+      const deficit = ideal - actual;
+
+      if (deficit > bestDeficit) {
+        bestDeficit = deficit;
+        chosen = source;
+      }
+    }
+
+    if (!chosen) break;
+    const queue = queues.get(chosen)!;
+    out.push(queue.shift()!);
+    picked.set(chosen, (picked.get(chosen) ?? 0) + 1);
+  }
+
+  return out.length === markets.length ? out : markets;
+}
+
 // ---------------------------------------------------------------------------
 // Options & feature flags
 // ---------------------------------------------------------------------------
@@ -194,8 +276,13 @@ async function fetchKalshi(): Promise<ProcessedMarket[]> {
 
     let obMap = new Map<string, import("./kalshi").KalshiOrderbookDepth>();
     if (ORDERBOOK_DEPTH_ENABLED) {
+      // Cap at 50 top-OI tickers — serial orderbook fetches at 15s timeout each
+      // would take hours for the full market set. 50 covers the most liquid markets
+      // that actually move the Pulse orderflow signal.
       const activeTickers = markets
         .filter((m) => m.status === "active")
+        .sort((a, b) => parseFloat(b.open_interest_fp ?? "0") - parseFloat(a.open_interest_fp ?? "0"))
+        .slice(0, 50)
         .map((m) => m.ticker);
       obMap = await fetchKalshiOrderbooks(activeTickers).catch(() => new Map());
     }
@@ -218,6 +305,20 @@ async function fetchManifold(): Promise<ProcessedMarket[]> {
 // Public API
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns whether all three source caches are currently warm (within SOFT_TTL).
+ * Used by streaming SSR pages to decide whether to pre-render data server-side
+ * or defer to client-side SWR (avoids blocking the first cold render).
+ */
+export function getCacheStatus(): { allWarm: boolean } {
+  const keys = ["polymarket", "kalshi", "manifold"];
+  const allWarm = keys.every((k) => {
+    const entry = sourceCache.get(k);
+    return entry !== undefined && Date.now() - entry.cachedAt < CACHE_SOFT_TTL_MS;
+  });
+  return { allWarm };
+}
+
 export interface AllSourcesResult {
   polymarkets: ProcessedMarket[];
   kalshiMarkets: ProcessedMarket[];
@@ -230,11 +331,30 @@ export interface AllSourcesResult {
  * single upstream round-trip.
  */
 export async function fetchAllSources(): Promise<AllSourcesResult> {
-  const [polymarkets, kalshiMarkets, manifoldMarkets] = await Promise.all([
+  const t0 = Date.now();
+  const [initialPolymarkets, initialKalshiMarkets, manifoldMarkets] = await Promise.all([
     fetchPolymarkets(),
     fetchKalshi(),
     fetchManifold(),
   ]);
+  let polymarkets = initialPolymarkets;
+  let kalshiMarkets = initialKalshiMarkets;
+
+  // Reliability-first guard: if one core source is empty on cold start, retry once.
+  if (polymarkets.length === 0) {
+    console.warn("[get-markets] Polymarket empty on first pass; retrying once");
+    polymarkets = await fetchPolymarkets();
+  }
+  if (kalshiMarkets.length === 0) {
+    console.warn("[get-markets] Kalshi empty on first pass; retrying once");
+    kalshiMarkets = await fetchKalshi();
+  }
+
+  const dt = Date.now() - t0;
+  console.info(
+    `[get-markets] source counts poly=${polymarkets.length} kalshi=${kalshiMarkets.length} manifold=${manifoldMarkets.length} totalMs=${dt}`,
+  );
+
   return { polymarkets, kalshiMarkets, manifoldMarkets };
 }
 
@@ -264,13 +384,23 @@ export async function getMarkets(
 
   const filtered = filterByCategory(markets, category);
   const sorted = sortMarkets(filtered, sort, watchlistIds);
-  const paginated = sorted.slice(offset, offset + PAGE_LIMIT);
+  const arranged = source === "all" && sort !== "watchlist"
+    ? interlaceBySourceWeighted(sorted)
+    : sorted;
+  const paginated = arranged.slice(offset, offset + PAGE_LIMIT);
+
+  const sourceBreakdown = {
+    polymarket: filtered.filter((m) => m.source === "polymarket").length,
+    kalshi: filtered.filter((m) => m.source === "kalshi").length,
+    manifold: filtered.filter((m) => m.source === "manifold").length,
+  };
 
   return {
     markets: paginated,
     cachedAt: fetchedAt,
     totalMarkets: filtered.length,
     fromCache: false,
+    sourceBreakdown,
   };
 }
 

@@ -1,6 +1,7 @@
 import type { KalshiMarket, KalshiCandle, KalshiSeries, ProcessedMarket } from "./types";
 import type { KalshiOrderbookDepth } from "./kalshi";
 import { computeDepthScore } from "./orderbook";
+import { inferPolarity } from "./polarity";
 
 /**
  * Maps Kalshi event-level category strings (exact API values) to Pulse-compatible slugs.
@@ -229,6 +230,7 @@ function processKalshiMarket(
     orderbookDepth,
     seriesTitle: series?.title,
     seriesFrequency: series?.frequency,
+    polarity: inferPolarity(market.title),
   };
 }
 

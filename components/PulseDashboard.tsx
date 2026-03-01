@@ -3,10 +3,18 @@
 import useSWR from "swr";
 import type { PulseApiResponse, PulseIndex } from "@/lib/types";
 import PulseCard from "./PulseCard";
-import { Activity } from "lucide-react";
+
+export const PULSE_SWR_KEY = "/api/pulse";
 
 async function pulseFetcher(url: string): Promise<PulseApiResponse> {
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -18,13 +26,15 @@ interface PulseDashboardProps {
 }
 
 export default function PulseDashboard({ initialData, large = false }: PulseDashboardProps) {
-  const { data, isLoading } = useSWR<PulseApiResponse>(
-    "/api/pulse",
+  const { data, isLoading, error } = useSWR<PulseApiResponse>(
+    PULSE_SWR_KEY,
     pulseFetcher,
     {
       fallbackData: initialData,
       refreshInterval: 60_000,
       revalidateOnFocus: false,
+      shouldRetryOnError: true,
+      errorRetryInterval: 10_000,
     }
   );
 
@@ -32,27 +42,6 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
 
   return (
     <section className="pt-3 pb-3">
-      {/* Section heading */}
-      <div className="flex items-center justify-between mb-2.5">
-        <div>
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            <h2 className="text-base font-semibold tracking-tight">Predpulse</h2>
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              Proprietary
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time category sentiment across Polymarket &amp; Kalshi
-          </p>
-        </div>
-        {data?.computedAt && (
-          <span className="text-[10px] text-muted-foreground/50 hidden sm:block">
-            Updated {new Date(data.computedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
-        )}
-      </div>
-
       {/* Skeleton loading */}
       {isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
@@ -65,7 +54,7 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
         </div>
       )}
 
-      {/* Cards grid — 2xl: all 8 cards in a single row */}
+      {/* Cards grid */}
       {!isLoading && indices.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
           {indices.map((index) => (
@@ -77,9 +66,14 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
       {/* Empty state */}
       {!isLoading && indices.length === 0 && (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Pulse data unavailable — market data is loading.
+          {error
+            ? "Still warming up — retrying automatically."
+            : "Data is loading (MVP cold start). Caching improvements are in progress."}
         </div>
       )}
+
+      {/* Scroll sentinel — observed by HeaderBar to trigger compact card display */}
+      <div id="pulse-sentinel" className="h-px w-full" aria-hidden="true" />
     </section>
   );
 }
