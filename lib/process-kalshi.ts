@@ -1,4 +1,6 @@
-import type { KalshiMarket, ProcessedMarket } from "./types";
+import type { KalshiMarket, KalshiCandle, KalshiSeries, ProcessedMarket } from "./types";
+import type { KalshiOrderbookDepth } from "./kalshi";
+import { computeDepthScore } from "./orderbook";
 
 /**
  * Maps Kalshi event-level category strings (exact API values) to Pulse-compatible slugs.
@@ -86,11 +88,67 @@ function fpToNumber(fp: string | undefined): number {
   return isNaN(val) ? 0 : val;
 }
 
+
+/**
+ * Derive price-change and volume fields from a sorted-ascending candle array.
+ * All price values are in percentage points (0–100).
+ */
+export function deriveCandleMetrics(candles: KalshiCandle[]): {
+  oneDayChange: number;
+  oneWeekChange: number;
+  oneMonthChange: number;
+  volume1wk: number;
+  volume1mo: number;
+} {
+  if (candles.length === 0) {
+    return { oneDayChange: 0, oneWeekChange: 0, oneMonthChange: 0, volume1wk: 0, volume1mo: 0 };
+  }
+
+  const last = candles[candles.length - 1];
+  const closeNow = last.close * 100; // convert fractional → pp
+
+  // Price at N candles ago (each candle = 1 day)
+  const closeDaysAgo = (n: number): number | null => {
+    const idx = candles.length - 1 - n;
+    return idx >= 0 ? candles[idx].close * 100 : null;
+  };
+
+  const close1dAgo = closeDaysAgo(1);
+  const close7dAgo = closeDaysAgo(7);
+  const close30dAgo = closeDaysAgo(30);
+
+  const oneDayChange = close1dAgo !== null ? Math.round((closeNow - close1dAgo) * 10) / 10 : 0;
+  const oneWeekChange = close7dAgo !== null ? Math.round((closeNow - close7dAgo) * 10) / 10 : 0;
+  const oneMonthChange = close30dAgo !== null ? Math.round((closeNow - close30dAgo) * 10) / 10 : 0;
+
+  // Volume sums over last N candles (excluding current partial day)
+  const volumeWindow = (n: number): number => {
+    const startIdx = Math.max(0, candles.length - 1 - n);
+    return candles.slice(startIdx, candles.length - 1).reduce((sum, c) => sum + c.volume, 0);
+  };
+
+  return {
+    oneDayChange,
+    oneWeekChange,
+    oneMonthChange,
+    volume1wk: volumeWindow(7),
+    volume1mo: volumeWindow(30),
+  };
+}
+
 /**
  * Transform a single KalshiMarket into a ProcessedMarket.
  * Returns null for markets that should be excluded (non-active, no pricing).
+ * candleMap provides daily OHLCV history for price-change and volume derivation.
+ * obMap optionally provides orderbook depth for the depthScore signal.
+ * seriesMap provides recurring-event context (title, frequency).
  */
-function processKalshiMarket(market: KalshiMarket): ProcessedMarket | null {
+function processKalshiMarket(
+  market: KalshiMarket,
+  candleMap: Map<string, KalshiCandle[]>,
+  obMap: Map<string, KalshiOrderbookDepth>,
+  seriesMap: Map<string, KalshiSeries>
+): ProcessedMarket | null {
   if (market.status !== "active") return null;
   if (!market.yes_ask_dollars && !market.last_price_dollars) return null;
 
@@ -101,16 +159,35 @@ function processKalshiMarket(market: KalshiMarket): ProcessedMarket | null {
 
   const { slug, label } = normalizeCategory(market.category);
 
-  // Kalshi doesn't expose per-market price change history via public API;
-  // set changes to 0 — Pulse engine uses volume/open_interest signals instead
   const volume24h = fpToNumber(market.volume_24h_fp);
   const openInterest = fpToNumber(market.open_interest_fp);
-
   // Use open_interest as a liquidity proxy (liquidity_dollars is deprecated/zero)
   const liquidity = openInterest;
 
+  const candles = candleMap.get(market.ticker) ?? [];
+  const { oneDayChange, oneWeekChange, oneMonthChange, volume1wk, volume1mo } =
+    deriveCandleMetrics(candles);
+
   // Build a human-readable event slug from the event_ticker for URL construction
   const eventSlug = market.event_ticker?.toLowerCase() ?? market.ticker.toLowerCase();
+
+  // Derive series_ticker from event_ticker prefix (e.g. "KXJOBSREPORT-24JUN" → "KXJOBSREPORT")
+  const seriesTicker = market.series_ticker ?? market.event_ticker?.split("-")[0] ?? "";
+  const series = seriesTicker ? seriesMap.get(seriesTicker) : undefined;
+
+  const ob = obMap.get(market.ticker);
+  const mid = currentPrice / 100;
+  const orderbookDepth = ob
+    ? {
+        bids: ob.bids.map((l) => [l.price, l.delta] as [number, number]),
+        asks: ob.asks.map((l) => [l.price, l.delta] as [number, number]),
+        depthScore: computeDepthScore(
+          ob.bids.map((l) => ({ price: l.price, quantity: l.delta })),
+          ob.asks.map((l) => ({ price: l.price, quantity: l.delta })),
+          mid,
+        ),
+      }
+    : undefined;
 
   return {
     id: market.ticker,
@@ -122,13 +199,14 @@ function processKalshiMarket(market: KalshiMarket): ProcessedMarket | null {
     categories: [label],
     image: "",
     currentPrice,
-    oneDayChange: 0,
+    oneDayChange,
+    // Kalshi batch_candlesticks is daily only; 1h change remains 0
     oneHourChange: 0,
-    oneWeekChange: 0,
-    oneMonthChange: 0,
+    oneWeekChange,
+    oneMonthChange,
     volume24h,
-    volume1wk: 0,
-    volume1mo: 0,
+    volume1wk,
+    volume1mo,
     liquidity,
     createdAt: market.open_time ?? new Date().toISOString(),
     endDate: market.close_time ?? "",
@@ -142,20 +220,31 @@ function processKalshiMarket(market: KalshiMarket): ProcessedMarket | null {
     description: "",
     resolutionSource: "https://kalshi.com",
     competitive: spread < 5 ? 1 : spread < 15 ? 0.5 : 0,
+    orderbookDepth,
+    seriesTitle: series?.title,
+    seriesFrequency: series?.frequency,
   };
 }
 
 /**
  * Process a list of KalshiMarket objects into ProcessedMarket[].
+ * candleMap provides daily OHLCV for each ticker to derive price changes.
+ * obMap optionally provides orderbook depth (gated by ENABLE_ORDERBOOK_DEPTH).
+ * seriesMap provides recurring-event context (title, frequency) from /series.
  * Skips inactive/unpriceable markets silently.
  */
-export function processKalshiMarkets(markets: KalshiMarket[]): ProcessedMarket[] {
+export function processKalshiMarkets(
+  markets: KalshiMarket[],
+  candleMap: Map<string, KalshiCandle[]> = new Map(),
+  obMap: Map<string, KalshiOrderbookDepth> = new Map(),
+  seriesMap: Map<string, KalshiSeries> = new Map()
+): ProcessedMarket[] {
   const seen = new Set<string>();
   const result: ProcessedMarket[] = [];
   for (const m of markets) {
     if (seen.has(m.ticker)) continue;
     seen.add(m.ticker);
-    const processed = processKalshiMarket(m);
+    const processed = processKalshiMarket(m, candleMap, obMap, seriesMap);
     if (processed) result.push(processed);
   }
   return result;

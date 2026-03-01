@@ -144,15 +144,20 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
             <div className="space-y-1.5">
               {(
                 [
-                  { key: "prob",        label: "Wtd Prob",   pct: "30%" },
-                  { key: "volWeighted", label: "Vol-Wtd",    pct: "20%" },
-                  { key: "momentum",    label: "Momentum",   pct: "20%" },
-                  { key: "breadth",     label: "Breadth",    pct: "15%" },
-                  { key: "decay",       label: "Decay",      pct: "10%" },
-                  { key: "consensus",   label: "Consensus",  pct: "5%" },
-                ] as const
-              ).map(({ key, label, pct }) => {
-                const val = index.signals[key];
+                  { key: "prob",               label: "Wtd Prob",    pct: "25%" },
+                  { key: "volWeighted",         label: "Vol-Wtd",     pct: "15%" },
+                  { key: "momentum",            label: "Momentum",    pct: "15%" },
+                  { key: "breadth",             label: "Breadth",     pct: "10%" },
+                  { key: "decay",               label: "Decay",       pct: "8%"  },
+                  { key: "consensus",           label: "Consensus",   pct: "7%"  },
+                  { key: "orderflow",           label: "Orderflow",   pct: "10%" },
+                  { key: "openInterest",        label: "OI Signal",   pct: "5%"  },
+                  { key: "manifoldDivergence",  label: "Mf Diverge",  pct: "5%"  },
+                ] as { key: keyof typeof index.signals; label: string; pct: string }[]
+              )
+              .filter(({ key }) => index.signals[key] !== undefined)
+              .map(({ key, label, pct }) => {
+                const val = index.signals[key] as number;
                 // Center-origin: signal bars grow right (bullish) or left (bearish) from midpoint
                 const isBullish = val >= 50;
                 const fillPct = (Math.abs(val - 50) / 50) * 100;

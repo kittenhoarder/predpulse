@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { getMarkets, getAllMarkets } from "@/lib/get-markets";
+import { fetchAllSources, getMarkets, getAllMarkets } from "@/lib/get-markets";
 import { computePulse } from "@/lib/pulse";
 import type { PulseApiResponse } from "@/lib/types";
 import MarketTable from "@/components/MarketTable";
@@ -11,10 +11,11 @@ import PulseLogo from "@/components/PulseLogo";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  // Fetch market table data and Pulse data in parallel
+  // Single upstream fetch for all three sources — reused by both table and Pulse
+  const sources = await fetchAllSources();
   const [initialData, pulseMarkets] = await Promise.all([
-    getMarkets({ sort: "movers", category: "all", offset: 0 }),
-    getAllMarkets(),
+    getMarkets({ sort: "movers", category: "all", offset: 0 }, sources),
+    getAllMarkets(sources),
   ]);
 
   const pulseIndices = computePulse(pulseMarkets);
@@ -25,6 +26,27 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Predpulse",
+            url: process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz",
+            description:
+              "Real-time dashboard tracking prediction market movers across Polymarket, Kalshi & Manifold.",
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"}/?q={search_term_string}`,
+              },
+              "query-input": "required name=search_term_string",
+            },
+          }),
+        }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-3">
@@ -103,9 +125,18 @@ export default async function HomePage() {
             >
               Kalshi
             </a>
+            {" "}&amp;{" "}
+            <a
+              href="https://docs.manifold.markets"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Manifold
+            </a>
             . Not financial advice.
           </span>
-          <span>Predpulse is not affiliated with Polymarket or Kalshi.</span>
+          <span>Predpulse is not affiliated with Polymarket, Kalshi, or Manifold.</span>
         </div>
       </footer>
     </div>

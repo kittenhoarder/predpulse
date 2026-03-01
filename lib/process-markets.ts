@@ -1,4 +1,6 @@
 import type { GammaEvent, GammaMarket, GammaTag, ProcessedMarket } from "./types";
+import type { PolymarketOrderbookDepth, PolymarketSmartMoney } from "./gamma";
+import { computeDepthScore } from "./orderbook";
 
 /**
  * Build a slug→label lookup from the live Gamma /tags response.
@@ -60,14 +62,19 @@ function toPP(fractional: number | undefined | null): number {
   return Math.round((fractional ?? 0) * 10000) / 100;
 }
 
+
 /**
  * Transform a single raw GammaMarket (with its parent event) into the leaner
  * ProcessedMarket shape. Returns null for markets that should be excluded.
+ * obMap optionally provides orderbook depth (gated by ENABLE_ORDERBOOK_DEPTH).
+ * smMap optionally provides smart money data (gated by ENABLE_SMART_MONEY).
  */
 function processMarket(
   market: GammaMarket,
   event: GammaEvent,
-  tagMap: Map<string, string>
+  tagMap: Map<string, string>,
+  obMap: Map<string, PolymarketOrderbookDepth>,
+  smMap: Map<string, PolymarketSmartMoney>
 ): ProcessedMarket | null {
   if (market.closed || market.archived || !market.active) return null;
 
@@ -83,6 +90,23 @@ function processMarket(
 
   // First CLOB token ID is the "Yes" token — used to fetch price history
   const clobTokenId = parseJsonArray<string>(market.clobTokenIds)[0] ?? "";
+
+  const ob = clobTokenId ? obMap.get(clobTokenId) : undefined;
+  const mid = outcomePrices[0];
+  const orderbookDepth = ob
+    ? {
+        bids: ob.bids.map((l) => [l.price, l.size] as [number, number]),
+        asks: ob.asks.map((l) => [l.price, l.size] as [number, number]),
+        depthScore: computeDepthScore(
+          ob.bids.map((l) => ({ price: l.price, quantity: l.size })),
+          ob.asks.map((l) => ({ price: l.price, quantity: l.size })),
+          mid,
+        ),
+      }
+    : undefined;
+
+  // conditionId is the canonical Polymarket identifier for smart money lookup
+  const sm = market.conditionId ? smMap.get(market.conditionId) : undefined;
 
   return {
     id: market.id,
@@ -113,6 +137,10 @@ function processMarket(
     description: market.description ?? "",
     resolutionSource: market.resolutionSource ?? "",
     competitive: market.competitive ?? 0,
+    orderbookDepth,
+    openInterest: sm?.openInterest,
+    smartMoneyScore: sm?.smartMoneyScore,
+    topHolders: sm?.topHolders,
   };
 }
 
@@ -122,10 +150,16 @@ function processMarket(
  * @param events  - Raw events from the Gamma /events endpoint.
  * @param tagMap  - Slug→label map built from the Gamma /tags endpoint.
  *                  Pass an empty Map when unavailable; labels fall back gracefully.
+ * @param obMap   - Orderbook depth keyed by CLOB token ID (from fetchPolymarketOrderbooks).
+ *                  Pass an empty Map when ENABLE_ORDERBOOK_DEPTH is unset.
+ * @param smMap   - Smart money data keyed by conditionId (from fetchPolymarketSmartMoney).
+ *                  Pass an empty Map when ENABLE_SMART_MONEY is unset.
  */
 export function processEvents(
   events: GammaEvent[],
-  tagMap: Map<string, string> = new Map()
+  tagMap: Map<string, string> = new Map(),
+  obMap: Map<string, PolymarketOrderbookDepth> = new Map(),
+  smMap: Map<string, PolymarketSmartMoney> = new Map()
 ): ProcessedMarket[] {
   const seen = new Set<string>();
   const result: ProcessedMarket[] = [];
@@ -135,7 +169,7 @@ export function processEvents(
     for (const market of event.markets) {
       if (seen.has(market.id)) continue;
       seen.add(market.id);
-      const processed = processMarket(market, event, tagMap);
+      const processed = processMarket(market, event, tagMap, obMap, smMap);
       if (processed) result.push(processed);
     }
   }

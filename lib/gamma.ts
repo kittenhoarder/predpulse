@@ -1,26 +1,10 @@
 import type { GammaEvent, GammaTag } from "./types";
+import { fetchWithTimeout, batchParallel } from "./fetch-utils";
 
 const GAMMA_BASE = "https://gamma-api.polymarket.com";
 const PAGE_SIZE = 100;
-// Fetch up to 5 pages (500 events) per refresh cycle
 const MAX_PAGES = 5;
-// Per-request timeout; with parallel fetches the wall-clock time is ~1 page worth
-const FETCH_TIMEOUT_MS = 15_000;
-// Max concurrent Gamma API requests — stays polite while still being fast
 const MAX_CONCURRENT = 3;
-
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs = FETCH_TIMEOUT_MS
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 /**
  * Fetch one page of active events (with embedded markets) from the Gamma API.
@@ -113,4 +97,150 @@ export async function fetchEventBySlug(slug: string): Promise<GammaEvent | null>
   if (!res.ok) return null;
   const data: GammaEvent[] = await res.json();
   return data.find((e) => e.slug === slug) ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Orderbook depth (Polymarket CLOB)
+// ---------------------------------------------------------------------------
+
+export interface PolymarketOrderbookLevel {
+  price: number;  // fractional 0–1
+  size: number;   // contracts
+}
+
+export interface PolymarketOrderbookDepth {
+  bids: PolymarketOrderbookLevel[];
+  asks: PolymarketOrderbookLevel[];
+}
+
+const CLOB_BASE = "https://clob.polymarket.com";
+const DATA_API_BASE = "https://data-api.polymarket.com";
+
+/**
+ * Fetch full orderbook depth for a batch of Polymarket token IDs in one POST request.
+ * Returns Map<tokenId, depth>; missing/errored tokens are omitted.
+ *
+ * Only called when ENABLE_ORDERBOOK_DEPTH env var is set.
+ */
+export async function fetchPolymarketOrderbooks(
+  tokenIds: string[]
+): Promise<Map<string, PolymarketOrderbookDepth>> {
+  const result = new Map<string, PolymarketOrderbookDepth>();
+  if (tokenIds.length === 0) return result;
+
+  const url = `${CLOB_BASE}/books`;
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tokenIds.map((id) => ({ token_id: id }))),
+    });
+  } catch (err) {
+    console.warn("[gamma] fetchPolymarketOrderbooks fetch error:", err);
+    return result;
+  }
+
+  if (!res.ok) {
+    console.warn(`[gamma] fetchPolymarketOrderbooks ${res.status}`);
+    return result;
+  }
+
+  let data: unknown;
+  try { data = await res.json(); } catch { return result; }
+
+  // Response: array of { asset_id, bids: [{price, size},...], asks: [...] }
+  if (!Array.isArray(data)) return result;
+
+  for (const book of data as Record<string, unknown>[]) {
+    const tokenId = String(book.asset_id ?? book.token_id ?? "");
+    if (!tokenId) continue;
+
+    const parseLevel = (raw: unknown): PolymarketOrderbookLevel[] => {
+      if (!Array.isArray(raw)) return [];
+      return raw.map((item: unknown) => {
+        const r = item as Record<string, unknown>;
+        return { price: parseFloat(String(r.price ?? "0")), size: parseFloat(String(r.size ?? "0")) };
+      });
+    };
+
+    result.set(tokenId, {
+      bids: parseLevel(book.bids),
+      asks: parseLevel(book.asks),
+    });
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Smart money: top holders + true open interest (Polymarket Data API)
+// ---------------------------------------------------------------------------
+
+export interface PolymarketHolder {
+  address: string;
+  shares: number;
+  side: "YES" | "NO";
+}
+
+export interface PolymarketSmartMoney {
+  openInterest: number;
+  smartMoneyScore: number;
+  topHolders: PolymarketHolder[];
+}
+
+/**
+ * Fetch top holders and true open interest for a batch of Polymarket conditionIds.
+ * Returns Map<conditionId, PolymarketSmartMoney>.
+ * Only called when ENABLE_SMART_MONEY env var is set.
+ */
+export async function fetchPolymarketSmartMoney(
+  conditionIds: string[]
+): Promise<Map<string, PolymarketSmartMoney>> {
+  const result = new Map<string, PolymarketSmartMoney>();
+  if (conditionIds.length === 0) return result;
+
+  const SMART_MONEY_BATCH_SIZE = 15;
+  await batchParallel(conditionIds, SMART_MONEY_BATCH_SIZE, async (conditionId) => {
+    try {
+      const params = new URLSearchParams({
+        market: conditionId,
+        sizeThreshold: "1000",
+        sortBy: "size",
+        limit: "10",
+      });
+      const res = await fetchWithTimeout(`${DATA_API_BASE}/positions?${params.toString()}`);
+      if (!res.ok) return;
+      const data = await res.json() as Record<string, unknown>[];
+      if (!Array.isArray(data)) return;
+
+      const holders: PolymarketHolder[] = data
+        .slice(0, 10)
+        .map((p) => ({
+          address: String(p.proxyWallet ?? p.user ?? p.address ?? ""),
+          shares: parseFloat(String(p.size ?? p.shares ?? "0")) || 0,
+          side: (String(p.outcome ?? "").toUpperCase() === "NO" ? "NO" : "YES") as "YES" | "NO",
+        }))
+        .filter((h) => h.address && h.shares > 0);
+
+      const totalShares = holders.reduce((s, h) => s + h.shares, 0);
+      const top5Shares = holders.slice(0, 5).reduce((s, h) => s + h.shares, 0);
+      const concentration = totalShares > 0 ? top5Shares / totalShares : 0;
+      const smartMoneyScore = Math.round(concentration * 100);
+
+      let openInterest = 0;
+      try {
+        const oiRes = await fetchWithTimeout(`${DATA_API_BASE}/markets?id=${encodeURIComponent(conditionId)}`);
+        if (oiRes.ok) {
+          const oiData = await oiRes.json();
+          const market = Array.isArray(oiData) ? oiData[0] : oiData;
+          openInterest = parseFloat(String((market as Record<string, unknown>)?.openInterest ?? "0")) || 0;
+        }
+      } catch { /* non-fatal */ }
+
+      result.set(conditionId, { openInterest, smartMoneyScore, topHolders: holders });
+    } catch { /* non-fatal */ }
+  });
+
+  return result;
 }

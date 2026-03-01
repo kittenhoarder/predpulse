@@ -11,6 +11,7 @@ import { ChevronLeft } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/pulse" },
   title: "Predpulse — Category Sentiment Index",
   description:
     "Predpulse is a proprietary real-time sentiment index across Polymarket & Kalshi, scoring 8 market categories from Extreme Bearish to Extreme Bullish.",

@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 import type { ProcessedMarket } from "@/lib/types";
-import { formatChange } from "./MarketRow";
+import { formatChange } from "@/lib/format";
 
 interface HeatmapViewProps {
   markets: ProcessedMarket[];
@@ -16,6 +16,7 @@ interface TreeNode {
   prob: number;
   id: string;
   eventSlug: string;
+  source: "polymarket" | "kalshi" | "manifold";
 }
 
 /**
@@ -49,10 +50,17 @@ interface ContentProps {
   change?: number;
   prob?: number;
   eventSlug?: string;
+  source?: "polymarket" | "kalshi" | "manifold";
+}
+
+function tileHref(source: string, eventSlug: string): string {
+  if (source === "kalshi") return `https://kalshi.com/markets/${eventSlug}`;
+  if (source === "manifold") return eventSlug;
+  return `/market/${eventSlug}`;
 }
 
 function CustomTile(props: ContentProps) {
-  const { x = 0, y = 0, width = 0, height = 0, name = "", change = 0, prob = 0, eventSlug = "" } = props;
+  const { x = 0, y = 0, width = 0, height = 0, name = "", change = 0, prob = 0, eventSlug = "", source = "polymarket" } = props;
 
   if (width < 20 || height < 20) return null;
 
@@ -61,6 +69,16 @@ function CustomTile(props: ContentProps) {
   const showChange = height > 40 && width > 60;
   const showProb = height > 56 && width > 60;
   const fontSize = Math.min(13, Math.max(9, width / 12));
+
+  const handleClick = () => {
+    if (!eventSlug) return;
+    const href = tileHref(source, eventSlug);
+    if (source === "polymarket") {
+      window.location.href = href;
+    } else {
+      window.open(href, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <g>
@@ -72,9 +90,7 @@ function CustomTile(props: ContentProps) {
         fill={bg}
         rx={4}
         style={{ cursor: "pointer" }}
-        onClick={() => {
-          if (eventSlug) window.location.href = `/market/${eventSlug}`;
-        }}
+        onClick={handleClick}
       />
       {width > 40 && height > 28 && (
         <foreignObject x={x + 4} y={y + 4} width={width - 8} height={height - 8}>
@@ -88,9 +104,7 @@ function CustomTile(props: ContentProps) {
               color: fg,
               cursor: "pointer",
             }}
-            onClick={() => {
-              if (eventSlug) window.location.href = `/market/${eventSlug}`;
-            }}
+            onClick={handleClick}
           >
             <div style={{ fontSize, fontWeight: 600, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
               {name}
@@ -131,7 +145,6 @@ export default function HeatmapView({ markets }: HeatmapViewProps) {
   const data = useMemo<TreeNode[]>(
     () =>
       markets
-        // Use liquidity as tile size (min 1 to avoid zero-size tiles)
         .map((m) => ({
           name: m.question,
           size: Math.max(m.liquidity, 1),
@@ -139,8 +152,9 @@ export default function HeatmapView({ markets }: HeatmapViewProps) {
           prob: m.currentPrice,
           id: m.id,
           eventSlug: m.eventSlug,
+          source: m.source,
         }))
-        .slice(0, 100), // cap at 100 tiles for performance
+        .slice(0, 100),
     [markets]
   );
 

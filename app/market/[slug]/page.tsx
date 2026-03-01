@@ -37,6 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   );
 
   return {
+    alternates: { canonical: `/market/${params.slug}` },
     title: `${event.title} — Predpulse`,
     description: `Current probability: ${prob}% · 24h change: ${Number(change) >= 0 ? "+" : ""}${change}% via Predpulse`,
     openGraph: {
@@ -44,6 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: `${prob}% probability · ${Number(change) >= 0 ? "+" : ""}${change}% 24h`,
       images: [{ url: ogUrl.toString(), width: 1200, height: 630 }],
       type: "website",
+      url: `/market/${params.slug}`,
     },
     twitter: {
       card: "summary_large_image",
@@ -68,8 +70,34 @@ export default async function MarketDetailPage({ params }: PageProps) {
 
   if (!market) notFound();
 
+  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz";
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Predpulse", item: BASE_URL },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: market.categories[0] ?? "Markets",
+                item: BASE_URL,
+              },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: market.question,
+                item: `${BASE_URL}/market/${params.slug}`,
+              },
+            ],
+          }),
+        }}
+      />
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">

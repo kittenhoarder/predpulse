@@ -7,17 +7,9 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronDown, ChevronRight, Star, Link } from "lucide-react";
 import ExpandedPanel from "./ExpandedPanel";
 import { isWatchlisted, toggleWatchlist } from "@/lib/watchlist";
+import { formatCurrency, formatChange } from "@/lib/format";
 
-export function formatCurrency(value: number): string {
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
-}
-
-export function formatChange(change: number): string {
-  const sign = change > 0 ? "+" : "";
-  return `${sign}${change.toFixed(1)}%`;
-}
+export { formatCurrency, formatChange };
 
 interface MarketRowProps {
   market: ProcessedMarket;

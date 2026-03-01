@@ -30,6 +30,17 @@ export interface KalshiSeries {
   frequency?: string;
 }
 
+// Single OHLCV candle from the Kalshi batch_candlesticks endpoint
+export interface KalshiCandle {
+  ticker: string;
+  open: number;   // fractional 0–1
+  high: number;
+  low: number;
+  close: number;
+  volume: number; // contracts traded
+  ts: number;     // unix timestamp seconds (start of period)
+}
+
 // Raw market object returned by the Polymarket Gamma API /events endpoint
 export interface GammaMarket {
   id: string;
@@ -147,6 +158,23 @@ export interface ProcessedMarket {
   resolutionSource: string;
   // 0–1 score of market competitiveness
   competitive: number;
+  // Orderbook depth snapshot (Kalshi + Polymarket only; absent when ENABLE_ORDERBOOK_DEPTH is unset)
+  orderbookDepth?: {
+    // Price levels as [price_0_to_1, size_contracts]
+    bids: [number, number][];
+    asks: [number, number][];
+    // 0–100: bid quantity within 5pp of mid-price as % of total near-mid depth (bid+ask)
+    depthScore: number;
+  };
+  // Kalshi series context (e.g. "Monthly Jobs Report", frequency "monthly")
+  seriesTitle?: string;
+  seriesFrequency?: string;
+  // True open interest from data-api (Polymarket only; absent when ENABLE_SMART_MONEY is unset)
+  openInterest?: number;
+  // 0–100 smart money concentration score (Polymarket only)
+  smartMoneyScore?: number;
+  // Top position holders (Polymarket only)
+  topHolders?: { address: string; shares: number; side: "YES" | "NO" }[];
 }
 
 // Live price overlay from WebSocket (best_bid_ask events)
@@ -183,6 +211,10 @@ export interface PulseIndex {
     volWeighted: number;
     decay: number;
     consensus: number;
+    // New signals (present when relevant data is available)
+    orderflow?: number;         // net buy-side depth from orderbook (Poly + Kalshi)
+    openInterest?: number;      // OI-growth conviction signal (Poly smart money)
+    manifoldDivergence?: number; // Manifold vs (Poly+Kalshi) price gap leading indicator
   };
   // Number of constituent markets by source
   marketCount: { polymarket: number; kalshi: number; manifold: number; total: number };
