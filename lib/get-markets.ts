@@ -8,26 +8,74 @@ import type { ProcessedMarket, SortMode, MarketsApiResponse } from "./types";
 const PAGE_LIMIT = 100;
 
 // ---------------------------------------------------------------------------
-// In-memory TTL cache — prevents thundering herd when CDN s-maxage expires
+// Stale-while-revalidate in-memory cache
+//
+// Two-tier TTL:
+//   SOFT: return cached + kick off a background refresh (invisible to caller)
+//   HARD: cache fully expired — block and wait for a fresh fetch
+//
+// Promise deduplication ensures concurrent cold-start requests share one fetch,
+// preventing N parallel full-source round-trips under load.
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 60_000;
+const CACHE_SOFT_TTL_MS = 240_000; // 4 min — trigger background refresh
+const CACHE_HARD_TTL_MS = 300_000; // 5 min — block and fetch if exceeded
 
-interface SourceCache {
+interface SourceCacheEntry {
   data: ProcessedMarket[];
-  expiresAt: number;
+  cachedAt: number;
 }
 
-const sourceCache = new Map<string, SourceCache>();
+const sourceCache = new Map<string, SourceCacheEntry>();
+// One in-flight promise per source key — deduplicates concurrent cold fetches
+const inflightFetch = new Map<string, Promise<ProcessedMarket[]>>();
 
-function getCached(key: string): ProcessedMarket[] | null {
-  const entry = sourceCache.get(key);
-  if (entry && Date.now() < entry.expiresAt) return entry.data;
-  return null;
+function getCachedEntry(key: string): SourceCacheEntry | null {
+  return sourceCache.get(key) ?? null;
 }
 
 function setCache(key: string, data: ProcessedMarket[]): void {
-  sourceCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+  sourceCache.set(key, { data, cachedAt: Date.now() });
+}
+
+/**
+ * Fetch a source with stale-while-revalidate semantics:
+ *  - Fresh (< SOFT_TTL):    return immediately, no fetch
+ *  - Stale (SOFT–HARD TTL): return stale data immediately; refresh in background
+ *  - Expired (> HARD_TTL):  block until fresh data is available
+ * Promise deduplication prevents duplicate fetches for the same key.
+ */
+async function fetchWithSWR(
+  key: string,
+  fetcher: () => Promise<ProcessedMarket[]>,
+): Promise<ProcessedMarket[]> {
+  const entry = getCachedEntry(key);
+  const age = entry ? Date.now() - entry.cachedAt : Infinity;
+
+  if (entry && age < CACHE_SOFT_TTL_MS) {
+    // Still fresh — return immediately
+    return entry.data;
+  }
+
+  if (entry && age < CACHE_HARD_TTL_MS) {
+    // Stale but usable — serve from cache and refresh in background
+    if (!inflightFetch.has(key)) {
+      const bg = fetcher()
+        .then((data) => { setCache(key, data); return data; })
+        .finally(() => inflightFetch.delete(key));
+      inflightFetch.set(key, bg);
+    }
+    return entry.data;
+  }
+
+  // Fully expired (or first load) — block on fetch, deduplicating concurrent callers
+  if (inflightFetch.has(key)) return inflightFetch.get(key)!;
+
+  const promise = fetcher()
+    .then((data) => { setCache(key, data); return data; })
+    .finally(() => inflightFetch.delete(key));
+  inflightFetch.set(key, promise);
+  return promise;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,10 +158,7 @@ const SMART_MONEY_ENABLED = process.env.ENABLE_SMART_MONEY === "1";
 // ---------------------------------------------------------------------------
 
 async function fetchPolymarkets(): Promise<ProcessedMarket[]> {
-  const cached = getCached("polymarket");
-  if (cached) return cached;
-
-  try {
+  return fetchWithSWR("polymarket", async () => {
     const [events, tags] = await Promise.all([fetchAllActiveEvents(), fetchTags()]);
     const tagMap = buildTagMap(tags);
 
@@ -136,20 +181,15 @@ async function fetchPolymarkets(): Promise<ProcessedMarket[]> {
         : Promise.resolve(new Map<string, import("./gamma").PolymarketSmartMoney>()),
     ]);
 
-    const result = processEvents(events, tagMap, obMap, smMap);
-    setCache("polymarket", result);
-    return result;
-  } catch (err) {
+    return processEvents(events, tagMap, obMap, smMap);
+  }).catch((err) => {
     console.error("[get-markets] Polymarket fetch failed:", err);
     return [];
-  }
+  });
 }
 
 async function fetchKalshi(): Promise<ProcessedMarket[]> {
-  const cached = getCached("kalshi");
-  if (cached) return cached;
-
-  try {
+  return fetchWithSWR("kalshi", async () => {
     const { markets, candleMap, seriesMap } = await fetchAllKalshiMarkets();
 
     let obMap = new Map<string, import("./kalshi").KalshiOrderbookDepth>();
@@ -160,27 +200,18 @@ async function fetchKalshi(): Promise<ProcessedMarket[]> {
       obMap = await fetchKalshiOrderbooks(activeTickers).catch(() => new Map());
     }
 
-    const result = processKalshiMarkets(markets, candleMap, obMap, seriesMap);
-    setCache("kalshi", result);
-    return result;
-  } catch (err) {
+    return processKalshiMarkets(markets, candleMap, obMap, seriesMap);
+  }).catch((err) => {
     console.error("[get-markets] Kalshi fetch failed:", err);
     return [];
-  }
+  });
 }
 
 async function fetchManifold(): Promise<ProcessedMarket[]> {
-  const cached = getCached("manifold");
-  if (cached) return cached;
-
-  try {
-    const result = await fetchManifoldMarkets();
-    setCache("manifold", result);
-    return result;
-  } catch (err) {
+  return fetchWithSWR("manifold", async () => fetchManifoldMarkets()).catch((err) => {
     console.error("[get-markets] Manifold fetch failed:", err);
     return [];
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -95,4 +95,29 @@ describe("processKalshiMarkets", () => {
     };
     expect(processKalshiMarkets([noPrice])).toHaveLength(0);
   });
+
+  it("derives oneDayChange from previous_price_dollars when present", () => {
+    // last_price_dollars = 0.6000 (60%), previous_price_dollars = 0.5000 (50%) → +10pp
+    const market = {
+      ...baseMarket,
+      last_price_dollars: "0.6000",
+      yes_ask_dollars: "0.6100",
+      previous_price_dollars: "0.5000",
+    };
+    const result = processKalshiMarkets([market]);
+    expect(result).toHaveLength(1);
+    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+  });
+
+  it("falls back to candle-derived oneDayChange when previous_price_dollars is absent", () => {
+    const candles: KalshiCandle[] = [
+      { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.40, volume: 100, ts: 1 },
+      { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.50, volume: 200, ts: 2 },
+    ];
+    const candleMap = new Map([["KXTEST-YES", candles]]);
+    const result = processKalshiMarkets([baseMarket], candleMap);
+    expect(result).toHaveLength(1);
+    // candle-derived: (50 - 40) = 10pp
+    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+  });
 });

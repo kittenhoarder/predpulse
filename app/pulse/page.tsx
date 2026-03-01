@@ -1,14 +1,15 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getAllMarkets } from "@/lib/get-markets";
+import { streamAllMarkets } from "@/lib/cached-sources";
 import { computePulse } from "@/lib/pulse";
 import type { PulseApiResponse } from "@/lib/types";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronLeft } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+// Streaming RSC — shell renders immediately; PulseSection streams in when data is ready.
+// No force-dynamic needed: Next.js infers dynamic rendering from the async data fetch.
 
 export const metadata: Metadata = {
   alternates: { canonical: "/pulse" },
@@ -33,17 +34,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function PulsePage() {
-  // SSR: compute initial Pulse data server-side to avoid layout shift
-  let initialData: PulseApiResponse | undefined;
-  try {
-    const markets = await getAllMarkets();
-    const indices = computePulse(markets);
-    initialData = { indices, computedAt: new Date().toISOString() };
-  } catch {
-    // Fallback: client-side SWR will handle the fetch
-  }
+// Async RSC that streams Pulse data — renders when getCachedSources() resolves
+async function PulseSection() {
+  const markets = await streamAllMarkets();
+  const indices = computePulse(markets);
+  const initialData: PulseApiResponse = { indices, computedAt: new Date().toISOString() };
+  return <PulseDashboard initialData={initialData} large />;
+}
 
+export default function PulsePage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
@@ -92,7 +91,7 @@ export default async function PulsePage() {
             </div>
           }
         >
-          <PulseDashboard initialData={initialData} large />
+          <PulseSection />
         </Suspense>
 
         {/* Methodology disclosure */}

@@ -1,4 +1,4 @@
-// Raw market object returned by the Kalshi Trade API v2 /markets endpoint
+// Raw market object returned by the Kalshi Trade API v2 /events?with_nested_markets=true
 export interface KalshiMarket {
   ticker: string;
   event_ticker: string;
@@ -8,14 +8,15 @@ export interface KalshiMarket {
   yes_sub_title?: string;
   no_sub_title?: string;
   status: "initialized" | "inactive" | "active" | "closed" | "determined" | "disputed" | "amended" | "finalized";
-  yes_bid_dollars: string;   // e.g. "0.5400"
-  yes_ask_dollars: string;   // e.g. "0.5600"
-  last_price_dollars: string; // e.g. "0.5500"
-  volume_24h_fp: string;     // 24h volume as FixedPoint string
-  volume_fp: string;         // lifetime volume as FixedPoint string
-  open_interest_fp: string;  // open contracts as FixedPoint string
-  open_time?: string;        // ISO timestamp
-  close_time?: string;       // ISO timestamp
+  yes_bid_dollars: string;        // e.g. "0.5400"
+  yes_ask_dollars: string;        // e.g. "0.5600"
+  last_price_dollars: string;     // e.g. "0.5500" — current last traded price
+  previous_price_dollars?: string; // last traded price 24h ago — from nested markets API
+  volume_24h_fp: string;          // 24h volume as FixedPoint string
+  volume_fp: string;              // lifetime volume as FixedPoint string
+  open_interest_fp: string;       // open contracts as FixedPoint string
+  open_time?: string;             // ISO timestamp
+  close_time?: string;            // ISO timestamp
   result?: string;
   // Series category — populated after series lookup
   category?: string;

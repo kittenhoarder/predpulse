@@ -4,10 +4,32 @@ import MarketTable from "@/components/MarketTable";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import PulseLogo from "@/components/PulseLogo";
+import { streamAllMarkets, streamGetMarkets } from "@/lib/cached-sources";
+import { computePulse } from "@/lib/pulse";
+import type { PulseApiResponse, MarketsApiResponse } from "@/lib/types";
 
-// Page shell renders immediately; data loads client-side via SWR from /api/markets and /api/pulse.
-// Removing the blocking SSR fetchAllSources() call avoids a 60-90s white screen caused by
-// Kalshi rate-limiting (429s) on cold starts.
+// ---------------------------------------------------------------------------
+// Async RSC sections — each streams independently behind its own Suspense.
+// Both share one fetchAllSources() call via the React cache() wrapper in
+// lib/cached-sources.ts, so no duplicate upstream requests per page render.
+// ---------------------------------------------------------------------------
+
+async function PulseSection() {
+  const markets = await streamAllMarkets();
+  const indices = computePulse(markets);
+  const initialData: PulseApiResponse = { indices, computedAt: new Date().toISOString() };
+  return <PulseDashboard initialData={initialData} />;
+}
+
+async function MarketsSection() {
+  const initialData: MarketsApiResponse = await streamGetMarkets({ sort: "movers", category: "all", offset: 0 });
+  return <MarketTable initialData={initialData} />;
+}
+
+// ---------------------------------------------------------------------------
+// Page shell — renders instantly (static HTML), data sections stream in
+// ---------------------------------------------------------------------------
+
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -44,7 +66,7 @@ export default function HomePage() {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Pulse nav link — subtle, right-aligned */}
+          {/* Pulse nav link */}
           <Link
             href="/pulse"
             className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50 shrink-0"
@@ -53,8 +75,6 @@ export default function HomePage() {
             Pulse
           </Link>
 
-          {/* Market count — rendered by MarketTable once data loads */}
-
           {/* Theme toggle */}
           <ThemeToggle />
         </div>
@@ -62,12 +82,12 @@ export default function HomePage() {
 
       {/* Page content */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pt-0 pb-6 flex flex-col">
-        {/* Pulse hero — above the fold */}
+        {/* Pulse hero — streams in when server data is ready; no client round-trip on warm cache */}
         <Suspense fallback={null}>
-          <PulseDashboard />
+          <PulseSection />
         </Suspense>
 
-        {/* "Markets" label — left-aligned, no broken horizontal rule */}
+        {/* "Markets" label */}
         <div className="mb-1">
           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
             Markets
@@ -81,7 +101,7 @@ export default function HomePage() {
             </div>
           }
         >
-          <MarketTable />
+          <MarketsSection />
         </Suspense>
       </main>
 

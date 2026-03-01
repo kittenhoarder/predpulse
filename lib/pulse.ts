@@ -128,8 +128,14 @@ function computeCategoryPulse(
   const kalshiMarkets = markets.filter((m) => m.source === "kalshi");
   const manifoldMarkets = markets.filter((m) => m.source === "manifold");
 
-  // Markets with valid weekly data (excludes Manifold whose oneWeekChange is always 0)
-  const weeklyMarkets = markets.filter((m) => m.source !== "manifold");
+  // Markets with valid weekly data.
+  // Manifold: oneWeekChange is always 0 (only 24h bet history is fetched).
+  // Kalshi: oneWeekChange is always 0 (batch candlesticks endpoint removed from API;
+  //         per-market fetching would recreate the fan-out; oneDayChange is available
+  //         via previous_price_dollars instead).
+  const weeklyMarkets = markets.filter(
+    (m) => m.source !== "manifold" && m.source !== "kalshi",
+  );
 
   // --- S_momentum: OI-weighted 7d price change ---
   let S_momentum = 50;

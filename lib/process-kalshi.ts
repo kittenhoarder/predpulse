@@ -165,8 +165,14 @@ function processKalshiMarket(
   const liquidity = openInterest;
 
   const candles = candleMap.get(market.ticker) ?? [];
-  const { oneDayChange, oneWeekChange, oneMonthChange, volume1wk, volume1mo } =
+  const { oneDayChange: candleOneDayChange, oneWeekChange, oneMonthChange, volume1wk, volume1mo } =
     deriveCandleMetrics(candles);
+
+  // previous_price_dollars is provided by the nested-markets API; prefer it over candle
+  // approximation since it's the authoritative 24h-ago price from the exchange.
+  const oneDayChange = market.previous_price_dollars
+    ? Math.round((fpToPrice(market.last_price_dollars) - fpToPrice(market.previous_price_dollars)) * 10) / 10
+    : candleOneDayChange;
 
   // Build a human-readable event slug from the event_ticker for URL construction
   const eventSlug = market.event_ticker?.toLowerCase() ?? market.ticker.toLowerCase();
