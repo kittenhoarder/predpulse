@@ -57,8 +57,8 @@ function SourceToggle({
   onChange: (s: SourceFilter) => void;
 }) {
   const options: { id: SourceFilter; label: string; color: string; activeColor: string }[] = [
-    { id: "polymarket", label: "P", color: "text-indigo-400", activeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40" },
     { id: "all",        label: "·", color: "text-muted-foreground", activeColor: "bg-primary/10 text-primary border-primary/40" },
+    { id: "polymarket", label: "P", color: "text-indigo-400", activeColor: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40" },
     { id: "kalshi",     label: "K", color: "text-sky-400",    activeColor: "bg-sky-500/20 text-sky-300 border-sky-500/40" },
     { id: "manifold",   label: "M", color: "text-violet-400", activeColor: "bg-violet-500/20 text-violet-300 border-violet-500/40" },
   ];
@@ -171,6 +171,8 @@ export default function MarketTable({
            style={{ marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", paddingLeft: "max(1rem, calc(50vw - 50%))", paddingRight: "max(1rem, calc(50vw - 50%))" }}>
         {/* Desktop: all controls in one scrollable row */}
         <div className="hidden md:flex items-center h-11 gap-0 overflow-x-auto scrollbar-none max-w-screen-2xl mx-auto">
+          <SourceToggle value={source} onChange={handleSourceChange} />
+          <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <SortTabs
             active={sort}
             onChange={handleSortChange}
@@ -178,8 +180,6 @@ export default function MarketTable({
           />
           <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <CategoryFilter active={category} onChange={handleCategoryChange} />
-          <div className="shrink-0 w-px h-4 bg-border mx-2" />
-          <SourceToggle value={source} onChange={handleSourceChange} />
           <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
