@@ -240,13 +240,15 @@ export default function NewsroomSection() {
     [marketsData?.markets]
   );
 
-  // Match each article to the most relevant prediction markets — pure client computation
+  // Match each article to the most relevant prediction markets — cap at 6 for 3-row grid
   const stories: StoryWithMarkets[] = useMemo(
     () =>
-      articles.map((article) => ({
-        article,
-        markets: matchArticlesToMarkets(article.title, allMarkets, 3),
-      })),
+      articles
+        .slice(0, 6)
+        .map((article) => ({
+          article,
+          markets: matchArticlesToMarkets(article.title, allMarkets, 3),
+        })),
     [articles, allMarkets]
   );
 
