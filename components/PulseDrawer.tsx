@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import type { PulseIndex } from "@/lib/types";
 import { X, ExternalLink } from "lucide-react";
+import { marketTradeUrl } from "@/lib/format";
 
 const CLOSE_DURATION_MS = 350;
 
@@ -126,7 +127,7 @@ export default function PulseDrawer({ index, onClose }: PulseDrawerProps) {
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1.5 rounded-lg hover:bg-muted transition-all duration-150 ease-out active:scale-90 text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -241,13 +242,7 @@ export default function PulseDrawer({ index, onClose }: PulseDrawerProps) {
                       {m.currentPrice.toFixed(1)}%
                     </span>
                     <a
-                      href={
-                        m.source === "kalshi"
-                          ? `https://kalshi.com/markets/${m.id}`
-                          : m.source === "manifold"
-                            ? `https://manifold.markets/${m.id}`
-                            : `https://polymarket.com/event/${m.id}`
-                      }
+                      href={marketTradeUrl(m.source, m.eventSlug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0"

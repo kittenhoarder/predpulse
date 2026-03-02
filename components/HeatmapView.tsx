@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 import type { ProcessedMarket } from "@/lib/types";
-import { formatChange } from "@/lib/format";
+import { formatChange, marketTradeUrl } from "@/lib/format";
 
 interface HeatmapViewProps {
   markets: ProcessedMarket[];
@@ -54,9 +54,9 @@ interface ContentProps {
 }
 
 function tileHref(source: string, eventSlug: string): string {
-  if (source === "kalshi") return `https://kalshi.com/markets/${eventSlug}`;
-  if (source === "manifold") return eventSlug;
-  return `/market/${eventSlug}`;
+  // Polymarket gets an internal detail page; Kalshi and Manifold go to their exchange
+  if (source === "polymarket") return `/market/${eventSlug}`;
+  return marketTradeUrl(source as "kalshi" | "manifold", eventSlug);
 }
 
 function CustomTile(props: ContentProps) {

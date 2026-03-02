@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import type { ProcessedMarket, LivePrice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { ExternalLink, ChevronDown, ChevronRight, Star, Link } from "lucide-react";
+import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
 import ExpandedPanel from "./ExpandedPanel";
 import { isWatchlisted, toggleWatchlist } from "@/lib/watchlist";
-import { formatCurrency, formatChange } from "@/lib/format";
+import { formatCurrency, formatChange, marketTradeUrl } from "@/lib/format";
 
 export { formatCurrency, formatChange };
 
@@ -20,10 +20,26 @@ interface MarketRowProps {
 
 export default function MarketRow({ market, rank, onWatchlistChange, livePrice }: MarketRowProps) {
   const [expanded, setExpanded] = useState(false);
+  // closing: true while the exit animation plays before unmounting
+  const [closing, setClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [starred, setStarred] = useState(false);
   // Flash state for live price updates: "up" | "down" | null
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function toggleExpanded() {
+    if (expanded && !closing) {
+      setClosing(true);
+      closeTimerRef.current = setTimeout(() => {
+        setExpanded(false);
+        setClosing(false);
+      }, 180);
+    } else if (!expanded) {
+      setExpanded(true);
+      setClosing(false);
+    }
+  }
 
   // Read from localStorage after mount (SSR safe)
   useEffect(() => {
@@ -41,13 +57,16 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
     };
   }, [livePrice?.flash, livePrice?.price]);
 
+  // Clean up close timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
   const isPositive = market.oneDayChange > 0;
   const isNeutral = market.oneDayChange === 0;
-  const tradeUrl = market.source === "kalshi"
-    ? `https://kalshi.com/markets/${market.eventSlug}`
-    : market.source === "manifold"
-      ? market.eventSlug  // Manifold stores the full URL in eventSlug
-      : `https://polymarket.com/event/${market.eventSlug}`;
+  const tradeUrl = marketTradeUrl(market.source, market.eventSlug);
 
   function handleStar(e: React.MouseEvent) {
     e.stopPropagation();
@@ -60,16 +79,16 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
     <>
       <TableRow
         className="group cursor-pointer select-none"
-        onClick={() => setExpanded((e) => !e)}
+        onClick={toggleExpanded}
       >
         {/* Rank + expand chevron */}
         <TableCell className="tabular-nums text-sm">
           <span className="flex items-center gap-1">
-            {expanded ? (
-              <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
-            )}
+            <ChevronRight
+              className={`w-3 h-3 text-muted-foreground shrink-0 transition-transform duration-200 ease-out ${
+                expanded ? "rotate-90" : ""
+              }`}
+            />
             <span className="text-muted-foreground">{rank}</span>
           </span>
         </TableCell>
@@ -155,7 +174,7 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
             <button
               onClick={handleStar}
               aria-label={starred ? "Remove from watchlist" : "Add to watchlist"}
-              className={`transition-colors ${
+              className={`transition-all duration-150 ease-out hover:scale-110 active:scale-95 ${
                 starred
                   ? "text-amber-400"
                   : "text-muted-foreground opacity-0 group-hover:opacity-100"
@@ -190,7 +209,9 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
       {expanded && (
         <TableRow className="hover:bg-transparent border-0">
           <TableCell colSpan={7} className="p-0">
-            <ExpandedPanel market={market} />
+            <div className={closing ? "panel-exit" : "panel-enter"}>
+              <ExpandedPanel market={market} />
+            </div>
           </TableCell>
         </TableRow>
       )}

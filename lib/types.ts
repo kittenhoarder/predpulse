@@ -220,7 +220,7 @@ export interface PulseIndex {
   // Number of constituent markets by source
   marketCount: { polymarket: number; kalshi: number; manifold: number; total: number };
   // Top 5 constituent market IDs + questions + scores for card expansion
-  topMarkets: Array<{ id: string; question: string; currentPrice: number; source: "polymarket" | "kalshi" | "manifold" }>;
+  topMarkets: Array<{ id: string; question: string; currentPrice: number; source: "polymarket" | "kalshi" | "manifold"; eventSlug: string }>;
   // Up to 48 hourly snapshots (oldest first) for sparkline
   history: PulseSnapshot[];
   // ISO timestamp of computation
@@ -277,7 +277,7 @@ export interface OperatorIndex {
   diagnostics: IndexDiagnostics;
   signals: Record<string, number>;
   marketCount: { polymarket: number; kalshi: number; manifold: number; total: number };
-  topMarkets: Array<{ id: string; question: string; currentPrice: number; source: "polymarket" | "kalshi" | "manifold" }>;
+  topMarkets: Array<{ id: string; question: string; currentPrice: number; source: "polymarket" | "kalshi" | "manifold"; eventSlug: string }>;
   history: PulseSnapshot[];
   computedAt: string;
 }

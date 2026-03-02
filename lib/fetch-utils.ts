@@ -25,10 +25,15 @@ export async function fetchWithTimeout(
   }
 }
 
+// Hard cap on Retry-After delays — prevents a single upstream 429 with a large
+// Retry-After value from holding the retry loop open longer than COLD_FETCH_TIMEOUT_MS,
+// which would cause background fetch accumulation across multiple request cycles.
+const MAX_RETRY_AFTER_MS = 10_000;
+
 /**
  * Retry a fetch-like async function on 429 responses using exponential backoff
- * with jitter. Respects Retry-After header when present. Non-429 errors and
- * final-attempt 429s are returned to the caller as-is.
+ * with jitter. Respects Retry-After header when present (capped at 10s).
+ * Non-429 errors and final-attempt 429s are returned to the caller as-is.
  *
  * @param fn       Function that returns a Response (or throws on network error)
  * @param retries  Max additional attempts after the first (default 3)
@@ -42,15 +47,15 @@ export async function fetchWithRetry(
   for (let attempt = 0; attempt <= retries; attempt++) {
     const res = await fn();
     if (res.status !== 429 || attempt === retries) return res;
-    // Honour Retry-After if provided (value in seconds); fall back to exponential backoff
+    // Honour Retry-After if provided (seconds), capped to prevent spiral accumulation
     const retryAfterSec = parseFloat(res.headers.get("Retry-After") ?? "");
     const delay = Number.isFinite(retryAfterSec) && retryAfterSec > 0
-      ? retryAfterSec * 1_000
+      ? Math.min(retryAfterSec * 1_000, MAX_RETRY_AFTER_MS)
       : baseMs * 2 ** attempt + Math.random() * 500;
     await new Promise((r) => setTimeout(r, delay));
   }
-  // unreachable — loop always returns above
-  return fn();
+  // Loop always returns on the final attempt above; this branch is unreachable.
+  throw new Error("fetchWithRetry: exhausted retries without returning");
 }
 
 /**

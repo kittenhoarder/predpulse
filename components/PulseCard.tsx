@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import type { PulseIndex } from "@/lib/types";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { marketTradeUrl } from "@/lib/format";
 
 const BAND_COLORS: Record<PulseIndex["band"], { text: string; hex: string }> = {
   "Extreme Bearish": { text: "text-red-500",     hex: "#ef4444" },
@@ -206,11 +207,7 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
                       {m.currentPrice.toFixed(1)}%
                     </span>
                     <a
-                      href={m.source === "kalshi"
-                        ? `https://kalshi.com/markets/${m.id}`
-                        : m.source === "manifold"
-                          ? `https://manifold.markets/${m.id}`
-                          : `https://polymarket.com/event/${m.id}`}
+                      href={marketTradeUrl(m.source, m.eventSlug)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-muted-foreground/30 hover:text-muted-foreground transition-colors shrink-0"

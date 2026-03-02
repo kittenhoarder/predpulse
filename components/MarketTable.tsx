@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X, Filter } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X, Droplets } from "lucide-react";
 import HeatmapView from "./HeatmapView";
 
 const LEGACY_PAGE_SIZE = 100;
@@ -220,6 +220,21 @@ export default function MarketTable({
            style={{ marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", paddingLeft: "max(1rem, calc(50vw - 50%))", paddingRight: "max(1rem, calc(50vw - 50%))" }}>
         {/* Desktop: all controls in one scrollable row */}
         <div className="hidden md:flex items-center h-11 gap-0 overflow-x-auto scrollbar-none max-w-screen-2xl mx-auto">
+          {/* Liquid filter — icon-only raindrop, tooltip explains it */}
+          <button
+            onClick={handleHideSmallToggle}
+            aria-label={hideSmall ? "Liquid markets only — click to show all" : "Showing all markets — click to filter to liquid only"}
+            aria-pressed={hideSmall}
+            title={hideSmall ? "Liquid markets only (volume > $1k, spread < 10¢) — click to show all" : "Show all markets — click to filter to liquid only"}
+            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all duration-150 shrink-0 ${
+              hideSmall
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
+            }`}
+          >
+            <Droplets className="w-3.5 h-3.5" />
+          </button>
+          <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <SourceToggle value={source} onChange={handleSourceChange} />
           <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <SortTabs
@@ -229,22 +244,6 @@ export default function MarketTable({
           />
           <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <CategoryFilter active={category} onChange={handleCategoryChange} />
-          <div className="shrink-0 w-px h-4 bg-border mx-2" />
-          {/* Hide small markets toggle */}
-          <button
-            onClick={handleHideSmallToggle}
-            aria-label={hideSmall ? "Showing liquid markets — click to show all" : "Showing all markets — click to hide small"}
-            aria-pressed={hideSmall}
-            title={hideSmall ? "Showing liquid markets" : "Showing all markets"}
-            className={`flex items-center gap-1.5 h-7 px-2 rounded-md border text-[11px] font-medium transition-colors shrink-0 ${
-              hideSmall
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Filter className="w-3 h-3" />
-            <span>Liquid</span>
-          </button>
           <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
@@ -425,9 +424,6 @@ export default function MarketTable({
             "No markets found"
           )}
         </p>
-        {isValidating && wsStatus !== "open" && (
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-        )}
       </div>
 
       {showPartialHint && sourceBreakdown && (

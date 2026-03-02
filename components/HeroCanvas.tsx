@@ -18,11 +18,13 @@ const HEAD_SPEED = 1.6;
 // Amplitude as a fraction of canvas height -- larger = more peaks/valleys
 const AMP_RATIO = 0.30;
 
-// Comet-tail particles: fast, thin, directional
+// Comet-tail particles: four velocity tiers with random spread per particle.
+// vxSpread: ±half-range added to vx at spawn so each streak has a unique speed.
 const DEPTH_PLANES = [
-  { tailLen: 18, lineWidth: 0.7, opacity: 0.45, vx: 1.8 },  // near
-  { tailLen: 11, lineWidth: 0.5, opacity: 0.28, vx: 1.1 },  // mid
-  { tailLen:  6, lineWidth: 0.3, opacity: 0.14, vx: 0.55 }, // far
+  { tailLen: 32, lineWidth: 1.0, opacity: 0.60, vx: 5.0, vxSpread: 2.0 },  // fast (streakers)
+  { tailLen: 18, lineWidth: 0.7, opacity: 0.45, vx: 1.8, vxSpread: 0.6 },  // near
+  { tailLen: 11, lineWidth: 0.5, opacity: 0.28, vx: 1.1, vxSpread: 0.4 },  // mid
+  { tailLen:  6, lineWidth: 0.3, opacity: 0.14, vx: 0.55, vxSpread: 0.2 }, // far
 ] as const;
 
 interface Particle {
@@ -57,16 +59,28 @@ function buildWavePts(w: number, h: number): [number, number][] {
   return pts;
 }
 
+// Plane index distribution: ~15% fast, ~28% near, ~28% mid, ~29% far.
+// Uses index-based bucketing so the mix is deterministic per count.
+function planeForIndex(i: number, total: number): (typeof DEPTH_PLANES)[number] {
+  const r = i / total;
+  if (r < 0.15) return DEPTH_PLANES[0]; // fast
+  if (r < 0.43) return DEPTH_PLANES[1]; // near
+  if (r < 0.71) return DEPTH_PLANES[2]; // mid
+  return DEPTH_PLANES[3];               // far
+}
+
 function buildParticles(count: number, w: number, h: number): Particle[] {
   return Array.from({ length: count }, (_, i) => {
-    const { tailLen, lineWidth, opacity, vx } = DEPTH_PLANES[i % 3];
+    const plane = planeForIndex(i, count);
+    // Bake a unique velocity per particle using the plane's spread
+    const vx = plane.vx + (Math.random() - 0.5) * plane.vxSpread;
     return {
       x: Math.random() * w,
       y: Math.random() * h,
       vx,
-      tailLen,
-      lineWidth,
-      opacity,
+      tailLen: plane.tailLen,
+      lineWidth: plane.lineWidth,
+      opacity: plane.opacity,
     };
   });
 }

@@ -103,15 +103,13 @@ export default function PulsePage() {
         <div className="mt-8 p-4 rounded-xl border border-border bg-muted/20 text-xs text-muted-foreground space-y-1.5">
           <p className="font-semibold text-foreground/70 uppercase tracking-wider text-[10px]">Methodology</p>
           <p>
-            Pulse is now the directional family alias in the operator index stack. The directional
-            score uses a low-compute core profile: momentum (45%), flow (35%), and breadth (20%).
-            Richer families and diagnostics remain available via the operator indices endpoints.
+            The Pulse score is a composite directional sentiment index. It synthesizes momentum
+            (45%), flow (35%), and breadth (20%) across Polymarket and Kalshi markets within each
+            category.
           </p>
           <p>
-            Confidence is computed as data freshness × source agreement × feature coverage.
-            Snapshot history updates every 5 minutes. Persistent storage is optional via
-            `INDEX_PERSISTENCE_ENABLED`; otherwise history is in-memory per runtime.
-            Not financial advice.
+            Confidence reflects data freshness, source agreement, and feature coverage.
+            Snapshot history updates every 5 minutes. Not financial advice.
           </p>
         </div>
       </main>
@@ -139,7 +137,10 @@ export default function PulsePage() {
             </a>
             . Not financial advice.
           </span>
-          <span>Predpulse is an original index by Predpulse.</span>
+          <span className="text-center sm:text-right">
+            Predpulse is a beta prototype — scores are experimental and may change.{" "}
+            Not affiliated with Polymarket or Kalshi.
+          </span>
         </div>
       </footer>
     </div>

@@ -78,16 +78,21 @@ export default function HeaderBar() {
           <div className="flex items-center gap-2 shrink-0">
             <PulseLogo size="sm" />
             <span className="font-semibold text-sm tracking-tight">Predpulse</span>
+            <span className="text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 leading-none">
+              Beta
+            </span>
           </div>
 
           {/* Compact pulse cards — slide in when full cards scroll out */}
           <div
-            className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 overflow-hidden transition-all duration-400 ease-out"
+            className="flex-1 flex items-center justify-center gap-1 sm:gap-1.5 overflow-hidden"
             style={{
               opacity: showCompact ? 1 : 0,
               transform: showCompact ? "translateY(0)" : "translateY(6px)",
               maxHeight: showCompact ? "40px" : "0px",
               pointerEvents: showCompact ? "auto" : "none",
+              transition: "opacity 400ms cubic-bezier(0.22,1,0.36,1), transform 400ms cubic-bezier(0.22,1,0.36,1), max-height 400ms cubic-bezier(0.22,1,0.36,1)",
+              willChange: "opacity, transform, max-height",
             }}
           >
             <div className="hidden sm:flex items-center gap-1 sm:gap-1.5">

@@ -325,6 +325,9 @@ export function pickCoreIndexMarkets(
   }
 
   const out = core.filter((m) => selected.has(`${m.source}:${m.id}`));
+  // Fallback: if bucket ranking selected nothing (e.g. all buckets < FLOOR_KEEP_ALL
+  // and the Set somehow stays empty), return the full size-filtered set rather than [].
+  // Note: `core` is already the post-filterBySize array, not the raw inputs.
   return out.length > 0 ? out : core;
 }
 
@@ -455,19 +458,29 @@ export async function fetchAllSources(): Promise<AllSourcesResult> {
 
   // Reliability-first guard: if a core source returned empty (timed out before
   // its inflight promise completed), wait briefly and re-read from the SWR cache.
+  // Both sources are checked in parallel — sequential waits would add 6s total
+  // in the worst case (both timed out), parallel waits cap the overhead at 3s.
   // We do NOT call fetchPolymarkets()/fetchKalshi() directly here — those bypass
-  // the inflight deduplication and would launch a second parallel upstream fetch
-  // if the original is still running. Checking the cache after a short delay lets
-  // us pick up the result of the already-running inflight promise instead.
-  if (polymarkets.length === 0) {
-    console.warn("[get-markets] Polymarket empty on first pass; waiting for inflight");
-    await new Promise((r) => setTimeout(r, 3_000));
-    polymarkets = getCachedEntry("polymarket")?.data ?? await fetchPolymarkets();
-  }
-  if (kalshiMarkets.length === 0) {
-    console.warn("[get-markets] Kalshi empty on first pass; waiting for inflight");
-    await new Promise((r) => setTimeout(r, 3_000));
-    kalshiMarkets = getCachedEntry("kalshi")?.data ?? await fetchKalshi();
+  // inflight deduplication and would launch a second upstream fetch if the original
+  // is still running. The 3s wait lets the inflight promise complete first.
+  const needsPolyRetry = polymarkets.length === 0;
+  const needsKalshiRetry = kalshiMarkets.length === 0;
+  if (needsPolyRetry) console.warn("[get-markets] Polymarket empty on first pass; waiting for inflight");
+  if (needsKalshiRetry) console.warn("[get-markets] Kalshi empty on first pass; waiting for inflight");
+
+  if (needsPolyRetry || needsKalshiRetry) {
+    const [resolvedPoly, resolvedKalshi] = await Promise.all([
+      needsPolyRetry
+        ? new Promise<void>((r) => setTimeout(r, 3_000))
+            .then(() => getCachedEntry("polymarket")?.data ?? fetchPolymarkets())
+        : Promise.resolve(polymarkets),
+      needsKalshiRetry
+        ? new Promise<void>((r) => setTimeout(r, 3_000))
+            .then(() => getCachedEntry("kalshi")?.data ?? fetchKalshi())
+        : Promise.resolve(kalshiMarkets),
+    ]);
+    polymarkets = resolvedPoly;
+    kalshiMarkets = resolvedKalshi;
   }
 
   const dt = Date.now() - t0;

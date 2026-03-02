@@ -63,7 +63,7 @@ export default function HeroSection() {
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
             The intelligence layer for prediction markets. Aggregated sentiment,
-            flow, and momentum from every major exchange&nbsp;&mdash;&nbsp;in real time.
+            flow, and momentum from major prediction exchanges.
           </p>
         </div>
 

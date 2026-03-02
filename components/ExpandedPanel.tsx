@@ -12,7 +12,7 @@ import {
 import { formatDistanceToNow, differenceInDays, parseISO, format } from "date-fns";
 import type { ProcessedMarket } from "@/lib/types";
 import { ExternalLink } from "lucide-react";
-import { formatCurrency, formatChange } from "@/lib/format";
+import { formatCurrency, formatChange, marketTradeUrl } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // CLOB price history fetch
@@ -329,11 +329,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       .catch(() => setTradesError(true));
   }, [market.clobTokenId]);
 
-  const externalUrl = market.source === "kalshi"
-    ? `https://kalshi.com/markets/${market.eventSlug}`
-    : market.source === "manifold"
-      ? market.eventSlug
-      : `https://polymarket.com/event/${market.eventSlug}`;
+  const externalUrl = marketTradeUrl(market.source, market.eventSlug);
 
   const closesIn =
     market.endDate
@@ -559,7 +555,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
               {trades.length > 5 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowAllTrades((v) => !v); }}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors mt-1 text-left"
+                  className="text-xs text-primary hover:text-primary/80 transition-all duration-150 active:scale-95 mt-1 text-left hover:underline underline-offset-2"
                 >
                   {showAllTrades ? "Show less" : `+${trades.length - 5} more`}
                 </button>
@@ -619,7 +615,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
                     e.stopPropagation();
                     setDescExpanded((v) => !v);
                   }}
-                  className="text-xs text-primary hover:text-primary/80 mt-0.5 transition-colors"
+                  className="text-xs text-primary hover:text-primary/80 mt-0.5 transition-all duration-150 active:scale-95 hover:underline underline-offset-2"
                 >
                   {descExpanded ? "Show less" : "Read more"}
                 </button>

@@ -8,6 +8,12 @@ const EVENTS_PAGE_LIMIT = 200;
 // returns 2-5MB; 3 pages stays well within a 45s cold-start budget.
 // Increasing this risks timeouts and does not meaningfully improve Pulse quality.
 const MAX_EVENT_PAGES = 3;
+// Minimum open_interest_fp (dollars) for a ticker to qualify for the candle fetch.
+// Tickers below this floor still reach processKalshiMarkets(); they get
+// volume1wk/volume1mo = 0 (the same graceful fallback as missing candle data).
+// Raising this value reduces candlestick batch requests at the cost of 7d/30d
+// coverage on smaller markets.
+const KALSHI_CANDLE_MIN_OI = 500;
 
 // Raw event shape from GET /events?with_nested_markets=true
 interface KalshiEventWithMarkets {
@@ -360,12 +366,8 @@ export async function fetchAllKalshiMarkets(): Promise<{
   }
 
   // Step 3: Pull daily candle history in batches to recover 7d/30d metrics.
-  // Only fetch candles for markets above the minimum OI floor — this cuts
-  // candlestick batch requests 3–5x (e.g. 2,000 tickers → ~400–600).
-  // Markets below the floor still reach processKalshiMarkets(); they just
-  // get volume1wk/volume1mo = 0, the same graceful fallback that already
-  // applies to tickers with no candle data.
-  const KALSHI_CANDLE_MIN_OI = 500;
+  // Only fetch candles for markets above KALSHI_CANDLE_MIN_OI — cuts batch
+  // requests 3–5x (e.g. 2,000 tickers → ~400–600).
   const activeTickers = allMarkets
     .filter(
       (m) =>

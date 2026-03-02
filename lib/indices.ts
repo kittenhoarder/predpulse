@@ -110,6 +110,7 @@ function topMarkets(markets: ProcessedMarket[]): OperatorIndex["topMarkets"] {
       question: m.question,
       currentPrice: m.currentPrice,
       source: m.source,
+      eventSlug: m.eventSlug,
     }));
 }
 

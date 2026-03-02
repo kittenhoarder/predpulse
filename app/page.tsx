@@ -125,7 +125,10 @@ export default function HomePage() {
             </a>
             . Not financial advice.
           </span>
-          <span>Predpulse is not affiliated with Polymarket, Kalshi, or Manifold.</span>
+          <span className="text-center sm:text-right">
+            Predpulse is a beta prototype — data may be incomplete or delayed.{" "}
+            Not affiliated with Polymarket, Kalshi, or Manifold.
+          </span>
         </div>
       </footer>
     </div>
