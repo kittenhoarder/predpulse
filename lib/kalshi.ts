@@ -24,6 +24,8 @@ interface KalshiEventWithMarkets {
  * (was up to 1,000 individual calls; now ~5 pages total).
  * status=open filters to active events only.
  * min_close_ts=now filters out events where all markets have already closed.
+ * Wrapped in fetchWithRetry so transient 429s are retried with backoff instead
+ * of silently returning an empty page and halting pagination.
  */
 async function fetchEventsPage(cursor?: string): Promise<{
   events: KalshiEventWithMarkets[];
@@ -38,7 +40,15 @@ async function fetchEventsPage(cursor?: string): Promise<{
   if (cursor) params.set("cursor", cursor);
 
   const url = `${KALSHI_BASE}/events?${params.toString()}`;
-  const res = await fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetchWithRetry(
+      () => fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS),
+    );
+  } catch (err) {
+    console.error(`[kalshi] events page fetch failed:`, err);
+    return { events: [], cursor: null };
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -65,7 +75,15 @@ async function fetchEventsPage(cursor?: string): Promise<{
 export async function fetchKalshiSeries(): Promise<KalshiSeries[]> {
   const params = new URLSearchParams({ limit: "200" });
   const url = `${KALSHI_BASE}/series?${params.toString()}`;
-  const res = await fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetchWithRetry(
+      () => fetchWithTimeout(url, undefined, FETCH_TIMEOUT_MS),
+    );
+  } catch {
+    console.warn("[kalshi] series fetch failed after retries");
+    return [];
+  }
   if (!res.ok) {
     console.warn(`[kalshi] Failed to fetch series: ${res.status}`);
     return [];
@@ -282,33 +300,44 @@ export async function fetchKalshiCandlesticks(
 
 /**
  * Fetch all active Kalshi markets using the nested-markets API:
- *   1. Paginate /events?with_nested_markets=true&status=open (up to MAX_EVENT_PAGES)
- *      → eliminates the old per-event /markets fan-out (~1,000 calls → ~5 calls)
- *   2. Extract markets from event.markets[] — already includes all pricing fields
- *      including previous_price_dollars for direct 24h change computation
- *   3. Fetch series list for recurring-event context (title, frequency) in parallel
- *   4. Fetch daily candlesticks in batch for active tickers (for 7d/30d deltas)
+ *   1. Paginate /events?with_nested_markets=true&status=open sequentially with
+ *      per-page 429 retry — avoids burst that triggered rate limits.
+ *      Series fetch starts concurrently with the last page to recover latency.
+ *   2. Extract markets from event.markets[] — includes all pricing fields
+ *      including previous_price_dollars for direct 24h change computation.
+ *   3. Fetch daily candlesticks in batch for tickers above the OI floor.
  */
 export async function fetchAllKalshiMarkets(): Promise<{
   markets: KalshiMarket[];
   candleMap: Map<string, KalshiCandle[]>;
   seriesMap: Map<string, KalshiSeries>;
 }> {
-  // Step 1: Paginate events (with nested markets) + fetch series list in parallel
-  const [allEvents, seriesRaw] = await Promise.all([
-    (async () => {
-      const events: KalshiEventWithMarkets[] = [];
-      let cursor: string | null | undefined = undefined;
-      for (let page = 0; page < MAX_EVENT_PAGES; page++) {
-        const result = await fetchEventsPage(cursor ?? undefined);
-        events.push(...result.events);
-        cursor = result.cursor;
-        if (!cursor) break;
-      }
-      return events;
-    })(),
-    fetchKalshiSeries(),
-  ]);
+  // Step 1: Paginate events sequentially (cursor-based) with per-page 429 retry.
+  // Series is fetched concurrently with the LAST events page — this avoids the
+  // original burst that caused 429s (series + page 1 firing simultaneously) while
+  // recovering ~1-2s vs fully sequential. If only one page is needed, series still
+  // runs in parallel with it, which is safe since a single-page run is much lighter.
+  const allEvents: KalshiEventWithMarkets[] = [];
+  let cursor: string | null | undefined = undefined;
+  let seriesPromise: Promise<KalshiSeries[]> | null = null;
+
+  for (let page = 0; page < MAX_EVENT_PAGES; page++) {
+    const isLastPage = page === MAX_EVENT_PAGES - 1;
+    // Start series fetch on the last page so it overlaps with that final RTT
+    if (isLastPage && !seriesPromise) {
+      seriesPromise = fetchKalshiSeries();
+    }
+    const result = await fetchEventsPage(cursor ?? undefined);
+    allEvents.push(...result.events);
+    cursor = result.cursor;
+    if (!cursor) {
+      // Pagination ended early — start series now if not already started
+      if (!seriesPromise) seriesPromise = fetchKalshiSeries();
+      break;
+    }
+  }
+
+  const seriesRaw = await (seriesPromise ?? fetchKalshiSeries());
 
   // Build seriesMap: series_ticker → KalshiSeries for O(1) enrichment
   const seriesMap = new Map<string, KalshiSeries>();
@@ -331,9 +360,18 @@ export async function fetchAllKalshiMarkets(): Promise<{
   }
 
   // Step 3: Pull daily candle history in batches to recover 7d/30d metrics.
-  // If this fetch fails, downstream processing gracefully falls back to 24h-only.
+  // Only fetch candles for markets above the minimum OI floor — this cuts
+  // candlestick batch requests 3–5x (e.g. 2,000 tickers → ~400–600).
+  // Markets below the floor still reach processKalshiMarkets(); they just
+  // get volume1wk/volume1mo = 0, the same graceful fallback that already
+  // applies to tickers with no candle data.
+  const KALSHI_CANDLE_MIN_OI = 500;
   const activeTickers = allMarkets
-    .filter((m) => m.status === "active")
+    .filter(
+      (m) =>
+        m.status === "active" &&
+        parseFloat(m.open_interest_fp ?? "0") >= KALSHI_CANDLE_MIN_OI,
+    )
     .map((m) => m.ticker);
   const candleMap = await fetchKalshiCandlesticks(activeTickers).catch(() => new Map());
 

@@ -27,7 +27,8 @@ export async function fetchWithTimeout(
 
 /**
  * Retry a fetch-like async function on 429 responses using exponential backoff
- * with jitter. Non-429 errors and final-attempt 429s are rethrown immediately.
+ * with jitter. Respects Retry-After header when present. Non-429 errors and
+ * final-attempt 429s are returned to the caller as-is.
  *
  * @param fn       Function that returns a Response (or throws on network error)
  * @param retries  Max additional attempts after the first (default 3)
@@ -41,7 +42,11 @@ export async function fetchWithRetry(
   for (let attempt = 0; attempt <= retries; attempt++) {
     const res = await fn();
     if (res.status !== 429 || attempt === retries) return res;
-    const delay = baseMs * 2 ** attempt + Math.random() * 500;
+    // Honour Retry-After if provided (value in seconds); fall back to exponential backoff
+    const retryAfterSec = parseFloat(res.headers.get("Retry-After") ?? "");
+    const delay = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+      ? retryAfterSec * 1_000
+      : baseMs * 2 ** attempt + Math.random() * 500;
     await new Promise((r) => setTimeout(r, delay));
   }
   // unreachable — loop always returns above

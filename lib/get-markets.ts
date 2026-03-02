@@ -29,7 +29,10 @@ const CACHE_SOFT_TTL_MS = 240_000; // 4 min — trigger background refresh
 const CACHE_HARD_TTL_MS = 300_000; // 5 min — block and fetch if exceeded
 // Maximum time to wait on a cold fetch before returning [] (lets other sources
 // still render; the slow source retries on the next request).
-const COLD_FETCH_TIMEOUT_MS = 20_000; // 20s
+// Set above the observed worst-case cold-fetch time (~25s with Kalshi serial
+// pagination + candlesticks) to prevent premature timeouts that trigger false
+// empty-source retries and duplicate fetches.
+const COLD_FETCH_TIMEOUT_MS = 32_000; // 32s
 
 interface SourceCacheEntry {
   data: ProcessedMarket[];
@@ -126,6 +129,38 @@ export function filterByCategory(
       m.categoryslugs.includes(lower) ||
       m.categories.some((c) => c.toLowerCase().includes(lower))
   );
+}
+
+// Per-source minimum thresholds for the display-layer size filter.
+// null volume24h means "skip volume check — use liquidity only".
+// Polymarket + Manifold: volume24h OR liquidity (either qualifies).
+// Kalshi: liquidity only — open_interest is the liquidity proxy; volume24h
+// is legitimately 0 on quiet days for otherwise meaningful markets.
+export const SIZE_THRESHOLDS: Record<
+  ProcessedMarket["source"],
+  { volume24h: number | null; liquidity: number }
+> = {
+  polymarket: { volume24h: 1_000, liquidity: 5_000 },
+  kalshi:     { volume24h: null,  liquidity: 500   },
+  manifold:   { volume24h: 100,   liquidity: 500   },
+};
+
+/**
+ * Filter markets below per-source size thresholds.
+ * When hideSmall is false, returns markets unchanged (user opted in to all).
+ * Exported for unit testing and index pre-filtering.
+ */
+export function filterBySize(
+  markets: ProcessedMarket[],
+  hideSmall: boolean,
+): ProcessedMarket[] {
+  if (!hideSmall) return markets;
+  return markets.filter((m) => {
+    const t = SIZE_THRESHOLDS[m.source];
+    const volumeOk = t.volume24h !== null && m.volume24h >= t.volume24h;
+    const liquidityOk = m.liquidity >= t.liquidity;
+    return volumeOk || liquidityOk;
+  });
 }
 
 export function sortMarkets(
@@ -241,7 +276,9 @@ export function pickCoreIndexMarkets(
   polymarkets: ProcessedMarket[],
   kalshiMarkets: ProcessedMarket[],
 ): ProcessedMarket[] {
-  const core = [...polymarkets, ...kalshiMarkets];
+  // Strip micro-markets before ranking to prevent zero-OI outliers from
+  // collapsing the normalization range and distorting index scores.
+  const core = filterBySize([...polymarkets, ...kalshiMarkets], true);
   if (core.length === 0) return [];
 
   const selected = new Set<string>();
@@ -304,6 +341,8 @@ export interface GetMarketsOptions {
   watchlistIds?: string[];
   /** When set, only return markets from this source */
   source?: "polymarket" | "kalshi" | "manifold" | "all";
+  /** When true (default), exclude markets below per-source size thresholds */
+  hideSmall?: boolean;
 }
 
 const ORDERBOOK_DEPTH_ENABLED = process.env.ENABLE_ORDERBOOK_DEPTH === "1";
@@ -414,14 +453,21 @@ export async function fetchAllSources(): Promise<AllSourcesResult> {
   let polymarkets = initialPolymarkets;
   let kalshiMarkets = initialKalshiMarkets;
 
-  // Reliability-first guard: if one core source is empty on cold start, retry once.
+  // Reliability-first guard: if a core source returned empty (timed out before
+  // its inflight promise completed), wait briefly and re-read from the SWR cache.
+  // We do NOT call fetchPolymarkets()/fetchKalshi() directly here — those bypass
+  // the inflight deduplication and would launch a second parallel upstream fetch
+  // if the original is still running. Checking the cache after a short delay lets
+  // us pick up the result of the already-running inflight promise instead.
   if (polymarkets.length === 0) {
-    console.warn("[get-markets] Polymarket empty on first pass; retrying once");
-    polymarkets = await fetchPolymarkets();
+    console.warn("[get-markets] Polymarket empty on first pass; waiting for inflight");
+    await new Promise((r) => setTimeout(r, 3_000));
+    polymarkets = getCachedEntry("polymarket")?.data ?? await fetchPolymarkets();
   }
   if (kalshiMarkets.length === 0) {
-    console.warn("[get-markets] Kalshi empty on first pass; retrying once");
-    kalshiMarkets = await fetchKalshi();
+    console.warn("[get-markets] Kalshi empty on first pass; waiting for inflight");
+    await new Promise((r) => setTimeout(r, 3_000));
+    kalshiMarkets = getCachedEntry("kalshi")?.data ?? await fetchKalshi();
   }
 
   const dt = Date.now() - t0;
@@ -458,7 +504,8 @@ export async function getMarkets(
   else if (source === "manifold") markets = manifoldMarkets;
   else markets = [...polymarkets, ...kalshiMarkets, ...manifoldMarkets];
 
-  const filtered = filterByCategory(markets, category);
+  const categorised = filterByCategory(markets, category);
+  const filtered = filterBySize(categorised, opts.hideSmall ?? true);
   const sorted = sortMarkets(filtered, sort, watchlistIds);
   const arranged = source === "all" && sort !== "watchlist"
     ? interlaceBySourceWeighted(sorted)

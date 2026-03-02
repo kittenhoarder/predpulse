@@ -164,8 +164,20 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
     }
   }
 
-  // Fetch 24h bet history for top-200 by volume (rate-limit safe)
-  const top200 = [...eligible]
+  // Fetch 24h bet history for top-200 by volume (rate-limit safe).
+  // Pre-filter to markets above the minimum size floor before selecting top-200 —
+  // shrinks the eligible pool so the 200 slots are spent on meaningful markets
+  // rather than stub/play-money markets with near-zero activity.
+  // Markets below the floor still appear in results; they just get oneDayChange: 0,
+  // the same as any market outside the top-200 today.
+  const MANIFOLD_MIN_V24H = 100;
+  const MANIFOLD_MIN_LIQ  = 500;
+  const sizedEligible = eligible.filter(
+    (m) =>
+      (m.volume24Hours ?? 0) >= MANIFOLD_MIN_V24H ||
+      (m.totalLiquidity ?? 0) >= MANIFOLD_MIN_LIQ,
+  );
+  const top200 = [...sizedEligible]
     .sort((a, b) => (b.volume24Hours ?? 0) - (a.volume24Hours ?? 0))
     .slice(0, 200);
   const deltaMap = await fetchManifoldBets(top200.map((m) => m.id));

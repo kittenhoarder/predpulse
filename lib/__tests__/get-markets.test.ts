@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterByCategory, getMarkets, pickCoreIndexMarkets, sortMarkets } from "../get-markets";
+import { filterByCategory, filterBySize, getMarkets, pickCoreIndexMarkets, SIZE_THRESHOLDS, sortMarkets } from "../get-markets";
 import type { ProcessedMarket } from "../types";
 
 function makeMarket(overrides: Partial<ProcessedMarket> = {}): ProcessedMarket {
@@ -179,15 +179,19 @@ describe("getMarkets pagination limits", () => {
 
 describe("pickCoreIndexMarkets", () => {
   it("caps each category/source bucket at 20 markets", () => {
+    // Fixtures must clear per-source size thresholds so filterBySize (now applied
+    // inside pickCoreIndexMarkets) doesn't strip them before the bucket ranking:
+    //   Polymarket: volume24h >= 1_000 OR liquidity >= 5_000
+    //   Kalshi:     liquidity >= 500
     const polymarkets = Array.from({ length: 30 }, (_, i) =>
       makeMarket({
         id: `p-${i}`,
         source: "polymarket",
         categoryslugs: ["economics"],
         categories: ["Economics"],
-        openInterest: 1000 + i * 10,
-        liquidity: 2000 + i,
-        volume24h: 500 + i,
+        openInterest: 10_000 + i * 10,
+        liquidity: 5_000 + i,   // >= 5_000 threshold
+        volume24h: 1_000 + i,   // >= 1_000 threshold
       }),
     );
     const kalshiMarkets = Array.from({ length: 30 }, (_, i) =>
@@ -196,9 +200,9 @@ describe("pickCoreIndexMarkets", () => {
         source: "kalshi",
         categoryslugs: ["economics"],
         categories: ["Economics"],
-        openInterest: 900 + i * 9,
-        liquidity: 1900 + i,
-        volume24h: 450 + i,
+        openInterest: 9_000 + i * 9,
+        liquidity: 1_000 + i,   // >= 500 threshold
+        volume24h: 0,
       }),
     );
 
@@ -222,5 +226,102 @@ describe("pickCoreIndexMarkets", () => {
 
     const selected = pickCoreIndexMarkets(polymarkets, []);
     expect(selected).toHaveLength(6);
+  });
+});
+
+describe("filterBySize", () => {
+  it("is a no-op when hideSmall is false", () => {
+    const markets = [
+      makeMarket({ id: "1", source: "polymarket", volume24h: 0, liquidity: 0 }),
+      makeMarket({ id: "2", source: "kalshi",     volume24h: 0, liquidity: 0 }),
+      makeMarket({ id: "3", source: "manifold",   volume24h: 0, liquidity: 0 }),
+    ];
+    expect(filterBySize(markets, false)).toHaveLength(3);
+  });
+
+  it("filters all sub-threshold markets when hideSmall is true", () => {
+    const markets = [
+      makeMarket({ id: "1", source: "polymarket", volume24h: 0,   liquidity: 0   }),
+      makeMarket({ id: "2", source: "kalshi",     volume24h: 0,   liquidity: 0   }),
+      makeMarket({ id: "3", source: "manifold",   volume24h: 0,   liquidity: 0   }),
+    ];
+    expect(filterBySize(markets, true)).toHaveLength(0);
+  });
+
+  describe("Polymarket thresholds", () => {
+    const { volume24h: minVol, liquidity: minLiq } = SIZE_THRESHOLDS.polymarket;
+
+    it("keeps a market exactly at the volume24h threshold", () => {
+      const m = makeMarket({ source: "polymarket", volume24h: minVol, liquidity: 0 });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+
+    it("keeps a market exactly at the liquidity threshold", () => {
+      const m = makeMarket({ source: "polymarket", volume24h: 0, liquidity: minLiq });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+
+    it("drops a market one below both thresholds", () => {
+      const m = makeMarket({ source: "polymarket", volume24h: minVol - 1, liquidity: minLiq - 1 });
+      expect(filterBySize([m], true)).toHaveLength(0);
+    });
+
+    it("keeps a market exceeding both thresholds", () => {
+      const m = makeMarket({ source: "polymarket", volume24h: minVol * 10, liquidity: minLiq * 10 });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+  });
+
+  describe("Kalshi thresholds", () => {
+    const { liquidity: minLiq } = SIZE_THRESHOLDS.kalshi;
+
+    it("keeps a market exactly at the liquidity threshold", () => {
+      const m = makeMarket({ source: "kalshi", volume24h: 0, liquidity: minLiq });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+
+    it("drops a market one below the liquidity threshold", () => {
+      const m = makeMarket({ source: "kalshi", volume24h: 0, liquidity: minLiq - 1 });
+      expect(filterBySize([m], true)).toHaveLength(0);
+    });
+
+    it("keeps a Kalshi market with zero volume24h but sufficient liquidity", () => {
+      // Kalshi markets legitimately have zero volume24h on quiet days;
+      // liquidity (OI proxy) is the meaningful signal.
+      const m = makeMarket({ source: "kalshi", volume24h: 0, liquidity: minLiq + 1 });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+  });
+
+  describe("Manifold thresholds", () => {
+    const { volume24h: minVol, liquidity: minLiq } = SIZE_THRESHOLDS.manifold;
+
+    it("keeps a market at the volume24h floor", () => {
+      const m = makeMarket({ source: "manifold", volume24h: minVol, liquidity: 0 });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+
+    it("keeps a market at the liquidity floor", () => {
+      const m = makeMarket({ source: "manifold", volume24h: 0, liquidity: minLiq });
+      expect(filterBySize([m], true)).toHaveLength(1);
+    });
+
+    it("drops a market below both floors", () => {
+      const m = makeMarket({ source: "manifold", volume24h: minVol - 1, liquidity: minLiq - 1 });
+      expect(filterBySize([m], true)).toHaveLength(0);
+    });
+  });
+
+  it("handles a mixed-source list correctly", () => {
+    const markets = [
+      makeMarket({ id: "p-small", source: "polymarket", volume24h: 0,     liquidity: 100   }), // below both
+      makeMarket({ id: "p-big",   source: "polymarket", volume24h: 5_000, liquidity: 0     }), // volume qualifies
+      makeMarket({ id: "k-small", source: "kalshi",     volume24h: 0,     liquidity: 100   }), // below liq floor
+      makeMarket({ id: "k-big",   source: "kalshi",     volume24h: 0,     liquidity: 1_000 }), // liq qualifies
+      makeMarket({ id: "m-small", source: "manifold",   volume24h: 50,    liquidity: 200   }), // below both
+      makeMarket({ id: "m-big",   source: "manifold",   volume24h: 200,   liquidity: 0     }), // volume qualifies
+    ];
+    const result = filterBySize(markets, true);
+    expect(result.map((m) => m.id)).toEqual(["p-big", "k-big", "m-big"]);
   });
 });

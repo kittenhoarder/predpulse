@@ -25,7 +25,10 @@ export async function GET(req: NextRequest) {
       ? sourceParam
       : "all") as "polymarket" | "kalshi" | "manifold" | "all";
 
-    const data = await getMarkets({ sort, category, offset, limit, watchlistIds, source });
+    // Default true — pass hideSmall=false explicitly to reveal small markets
+    const hideSmall = searchParams.get("hideSmall") !== "false";
+
+    const data = await getMarkets({ sort, category, offset, limit, watchlistIds, source, hideSmall });
 
     return NextResponse.json(data, {
       headers: {

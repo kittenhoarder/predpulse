@@ -7,6 +7,14 @@ const config: Config = {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  // Safelist dynamically-assembled band color classes used in BAND_COLORS records
+  safelist: [
+    "text-red-500",
+    "text-orange-400",
+    "text-zinc-400",
+    "text-sky-400",
+    "text-emerald-400",
+  ],
   theme: {
   	extend: {
   		fontFamily: {
