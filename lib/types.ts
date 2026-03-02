@@ -321,3 +321,45 @@ export type SortMode =
   | "liquidity"
   | "new"
   | "watchlist";
+
+// ---------------------------------------------------------------------------
+// Context Intelligence Layer — external data types
+// ---------------------------------------------------------------------------
+
+// GDELT Doc API article (tone: negative = bearish sentiment)
+export interface GdeltArticle {
+  url: string;
+  title: string;
+  domain: string;
+  // GDELT seendate format: "20240315T120000Z"
+  seendate: string;
+  // GDELT tone float — negative is bearish/negative sentiment, positive is positive
+  tone: number;
+  // og:image URL extracted server-side by /api/news proxy (absent when fetched directly)
+  image?: string;
+  // Optional summary text (e.g. Guardian trailText) for in-app expansion
+  summary?: string;
+}
+
+// Metaculus community question with forecast
+export interface MetaculusQuestion {
+  id: number;
+  title: string;
+  // Full URL to the Metaculus question page
+  url: string;
+  // Community median probability 0–1, null if no forecast yet
+  communityMedian: number | null;
+  resolutionCriteria: string;
+}
+
+// FRED series observation (filtered, ascending order for charting)
+export interface FredObservation {
+  date: string;
+  value: number;
+}
+
+// CoinGecko daily price point for 90-day market chart
+export interface CoinGeckoPricePoint {
+  date: string;
+  price: number;
+}

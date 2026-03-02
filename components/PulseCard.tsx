@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 import type { PulseIndex } from "@/lib/types";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
@@ -17,10 +16,13 @@ const BAND_COLORS: Record<PulseIndex["band"], { text: string; hex: string }> = {
 interface PulseCardProps {
   index: PulseIndex;
   large?: boolean;
+  /** When true, shows the full signal + top-markets section */
+  showDetails: boolean;
+  /** Toggle handler controlled by parent (e.g. PulseDashboard) */
+  onToggleDetails: () => void;
 }
 
-export default function PulseCard({ index, large = false }: PulseCardProps) {
-  const [expanded, setExpanded] = useState(false);
+export default function PulseCard({ index, large = false, showDetails, onToggleDetails }: PulseCardProps) {
   const colors = BAND_COLORS[index.band];
   const hasDelta = index.delta24h !== 0;
   const deltaPositive = index.delta24h > 0;
@@ -31,9 +33,9 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
       className={`rounded-xl border border-border bg-card transition-shadow hover:shadow-md cursor-pointer select-none ${
         large ? "p-4" : "p-3"
       }`}
-      onClick={() => setExpanded((e) => !e)}
+      onClick={onToggleDetails}
       role="button"
-      aria-expanded={expanded}
+      aria-expanded={showDetails}
     >
       {/* Header: label + chevron */}
       <div className="flex items-center justify-between mb-3">
@@ -41,7 +43,7 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
           {index.label}
         </span>
         <span className="text-muted-foreground/40 shrink-0">
-          {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+          {showDetails ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
         </span>
       </div>
 
@@ -136,7 +138,7 @@ export default function PulseCard({ index, large = false }: PulseCardProps) {
       </div>
 
       {/* Expanded: signal breakdown + top markets */}
-      {expanded && (
+      {showDetails && (
         <div className="mt-3 pt-3 border-t border-border space-y-3" onClick={(e) => e.stopPropagation()}>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">

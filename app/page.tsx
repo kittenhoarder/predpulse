@@ -3,6 +3,7 @@ import MarketTable from "@/components/MarketTable";
 import PulseDashboard from "@/components/PulseDashboard";
 import HeaderBar from "@/components/HeaderBar";
 import HeroSection from "@/components/HeroSection";
+import NewsroomSection from "@/components/NewsroomSection";
 import { streamAllMarkets, streamGetMarkets, isCacheWarm } from "@/lib/cached-sources";
 import { computePulse } from "@/lib/pulse";
 import type { PulseApiResponse, MarketsApiResponse } from "@/lib/types";
@@ -70,6 +71,9 @@ export default function HomePage() {
 
       {/* Page content */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pb-6 flex flex-col">
+        {/* Newsroom — news-first intelligence layer; skeletons show immediately */}
+        <NewsroomSection />
+
         <Suspense fallback={null}>
           <PulseSection />
         </Suspense>

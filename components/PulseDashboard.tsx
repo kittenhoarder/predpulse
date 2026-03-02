@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { useState } from "react";
 import type { PulseApiResponse, PulseIndex } from "@/lib/types";
 import { fetchPulseApi } from "@/lib/pulse-client";
 import PulseCard from "./PulseCard";
@@ -25,6 +26,11 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
   );
 
   const indices: PulseIndex[] = data?.indices ?? [];
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const handleToggleDetails = () => {
+    setDetailsOpen((prev) => !prev);
+  };
 
   return (
     <section className="pt-3 pb-3">
@@ -44,7 +50,13 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
       {!isLoading && indices.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
           {indices.map((index) => (
-            <PulseCard key={index.category} index={index} large={large} />
+            <PulseCard
+              key={index.category}
+              index={index}
+              large={large}
+              showDetails={detailsOpen}
+              onToggleDetails={handleToggleDetails}
+            />
           ))}
         </div>
       )}
