@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X } from "lucide-react";
+import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X, Filter } from "lucide-react";
 import HeatmapView from "./HeatmapView";
 
 const LEGACY_PAGE_SIZE = 100;
@@ -42,7 +42,8 @@ function buildUrl(
   offset: number,
   limit: number,
   watchlistIds: string[],
-  source: SourceFilter
+  source: SourceFilter,
+  hideSmall: boolean,
 ): string {
   const params = new URLSearchParams({ sort, category, offset: String(offset), limit: String(limit) });
   if (sort === "watchlist" && watchlistIds.length > 0) {
@@ -50,6 +51,10 @@ function buildUrl(
   }
   if (source !== "all") {
     params.set("source", source);
+  }
+  // Only append when off — keeps default (hide-small) URLs clean
+  if (!hideSmall) {
+    params.set("hideSmall", "false");
   }
   return `/api/markets?${params.toString()}`;
 }
@@ -106,9 +111,15 @@ export default function MarketTable({
   const [cogOpen, setCogOpen] = useState(false);
   // Watchlist IDs read from localStorage; refreshed when user stars/unstars
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
+  // Hide markets below per-source size thresholds (default on; persisted in localStorage)
+  const [hideSmall, setHideSmall] = useState(true);
 
   useEffect(() => {
     try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
+    try {
+      const stored = localStorage.getItem("hideSmall");
+      if (stored !== null) setHideSmall(stored !== "false");
+    } catch { /* private browsing */ }
   }, []);
 
   const refreshWatchlist = useCallback(() => {
@@ -120,11 +131,11 @@ export default function MarketTable({
     ? Math.floor(uiPage / 2) * SERVER_PAGE_SIZE
     : uiPage * LEGACY_PAGE_SIZE;
 
-  const url = buildUrl(sort, category, serverOffset, serverLimit, watchlistIds, source);
+  const url = buildUrl(sort, category, serverOffset, serverLimit, watchlistIds, source, hideSmall);
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
     fallbackData:
-      uiPage === 0 && sort === initialSort && category === initialCategory && source === "all"
+      uiPage === 0 && sort === initialSort && category === initialCategory && source === "all" && hideSmall
         ? initialData
         : undefined,
     // WebSocket handles sub-minute freshness; SWR does full sorted-list refresh every 60s
@@ -175,6 +186,15 @@ export default function MarketTable({
     setUiPage(0);
   }, []);
 
+  const handleHideSmallToggle = useCallback(() => {
+    setHideSmall((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("hideSmall", String(next)); } catch { /* private browsing */ }
+      return next;
+    });
+    setUiPage(0);
+  }, []);
+
   const totalMarkets = data?.totalMarkets ?? 0;
   const sourceBreakdown = data?.sourceBreakdown;
   const visiblePageSize = MARKETS_DOUBLE_PAGE_ENABLED ? UI_PAGE_SIZE : (data?.pageSize ?? LEGACY_PAGE_SIZE);
@@ -209,6 +229,22 @@ export default function MarketTable({
           />
           <div className="shrink-0 w-px h-4 bg-border mx-2" />
           <CategoryFilter active={category} onChange={handleCategoryChange} />
+          <div className="shrink-0 w-px h-4 bg-border mx-2" />
+          {/* Hide small markets toggle */}
+          <button
+            onClick={handleHideSmallToggle}
+            aria-label={hideSmall ? "Showing liquid markets — click to show all" : "Showing all markets — click to hide small"}
+            aria-pressed={hideSmall}
+            title={hideSmall ? "Showing liquid markets" : "Showing all markets"}
+            className={`flex items-center gap-1.5 h-7 px-2 rounded-md border text-[11px] font-medium transition-colors shrink-0 ${
+              hideSmall
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Filter className="w-3 h-3" />
+            <span>Liquid</span>
+          </button>
           <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
@@ -309,6 +345,28 @@ export default function MarketTable({
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Source</p>
               <SourceToggle value={source} onChange={(s) => { handleSourceChange(s); setCogOpen(false); }} />
+            </div>
+
+            {/* Market size filter */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Liquid markets only</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Hide low-volume / low-liquidity markets</p>
+              </div>
+              <button
+                onClick={handleHideSmallToggle}
+                aria-pressed={hideSmall}
+                aria-label="Toggle liquid markets filter"
+                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none ${
+                  hideSmall ? "bg-primary" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${
+                    hideSmall ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* View mode */}

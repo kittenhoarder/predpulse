@@ -9,10 +9,10 @@ import { X, ExternalLink } from "lucide-react";
 const CLOSE_DURATION_MS = 350;
 
 const BAND_COLORS: Record<PulseIndex["band"], { text: string; hex: string }> = {
-  "Extreme Bearish": { text: "text-red-500",        hex: "#ef4444" },
-  "Bearish":         { text: "text-red-400",        hex: "#f87171" },
-  "Neutral":         { text: "text-teal-400/60",    hex: "#5b8a8a" },
-  "Bullish":         { text: "text-teal-400",    hex: "#2dd4bf" },
+  "Extreme Bearish": { text: "text-red-500",     hex: "#ef4444" },
+  "Bearish":         { text: "text-orange-400",  hex: "#fb923c" },
+  "Neutral":         { text: "text-zinc-400",    hex: "#a1a1aa" },
+  "Bullish":         { text: "text-sky-400",     hex: "#38bdf8" },
   "Extreme Bullish": { text: "text-emerald-400", hex: "#34d399" },
 };
 
