@@ -133,13 +133,16 @@ export default function MarketTable({
 
   const url = buildUrl(sort, category, serverOffset, serverLimit, watchlistIds, source, hideSmall);
 
+  const hasInitialData = uiPage === 0 && sort === initialSort && category === initialCategory &&
+    source === "all" && hideSmall && watchlistIds.length === 0 && Boolean(initialData);
   const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
     fallbackData:
-      uiPage === 0 && sort === initialSort && category === initialCategory && source === "all" && hideSmall
+      hasInitialData
         ? initialData
         : undefined,
-    // WebSocket handles sub-minute freshness; SWR does full sorted-list refresh every 60s
-    refreshInterval: 60_000,
+    revalidateOnMount: !hasInitialData,
+    revalidateIfStale: !hasInitialData,
+    refreshInterval: 300_000,
     revalidateOnFocus: false,
     keepPreviousData: true,
   });

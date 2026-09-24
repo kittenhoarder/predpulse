@@ -53,7 +53,7 @@ describe("computeIndices (operator index families)", () => {
     const bullish = Array.from({ length: 3 }, (_, i) =>
       makeMarket({ id: `b-${i}`, polarity: 1, oneDayChange: 6, oneWeekChange: 12 }),
     );
-    const bearish = bullish.map((m, i) => ({ ...m, id: `r-${i}`, polarity: -1 }));
+    const bearish = bullish.map((m, i) => ({ ...m, id: `r-${i}`, polarity: -1 as const }));
 
     const bull = computeIndices(bullish, { family: "directional", sourceScope: "core", persist: false });
     const bear = computeIndices(bearish, { family: "directional", sourceScope: "core", persist: false });

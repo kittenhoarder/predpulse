@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAllMarkets } from "@/lib/get-markets";
 import { computeIndices } from "@/lib/indices";
 import { isIndexPersistenceEnabled } from "@/lib/index-store";
+import { loadPublishedSnapshot } from "@/lib/snapshot";
 import type { IndexFamily, IndexHorizon, IndexSourceScope, IndicesApiResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
     const horizon = (VALID_HORIZON.has(horizonRaw) ? horizonRaw : "24h") as IndexHorizon;
     const sourceScope = (VALID_SCOPE.has(sourceScopeRaw) ? sourceScopeRaw : "core") as IndexSourceScope;
 
-    const markets = await getAllMarkets();
+    const snapshot = await loadPublishedSnapshot();
+    const markets = snapshot?.markets ?? await getAllMarkets();
     const result = await computeIndices(markets, {
       family,
       horizon,

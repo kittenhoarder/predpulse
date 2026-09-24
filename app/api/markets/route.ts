@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMarkets } from "@/lib/get-markets";
+import { loadPublishedSnapshot } from "@/lib/snapshot";
+import { marketsFromSnapshot, snapshotAgeStatus } from "@/lib/snapshot-response";
 import type { SortMode } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -28,13 +30,17 @@ export async function GET(req: NextRequest) {
     // Default true — pass hideSmall=false explicitly to reveal small markets
     const hideSmall = searchParams.get("hideSmall") !== "false";
 
-    const data = await getMarkets({ sort, category, offset, limit, watchlistIds, source, hideSmall });
+    const snapshot = await loadPublishedSnapshot();
+    const data = snapshot
+      ? await marketsFromSnapshot(snapshot, { sort, category, offset, limit, watchlistIds, source, hideSmall })
+      : await getMarkets({ sort, category, offset, limit, watchlistIds, source, hideSmall });
 
     return NextResponse.json(data, {
       headers: {
         // CDN: serve up to 60 s; allow stale for 5 min while revalidating.
         // Note: manifold fetch cache revalidates every 300 s (aligned with stale-while-revalidate).
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+        ...(snapshot ? { "X-Snapshot-Status": snapshotAgeStatus(snapshot.generatedAt) } : {}),
       },
     });
   } catch (err) {

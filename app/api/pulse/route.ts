@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllMarkets, getCoreIndexMarkets } from "@/lib/get-markets";
 import { computePulse } from "@/lib/pulse";
+import { loadPublishedSnapshot } from "@/lib/snapshot";
 import type { PulseApiResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -9,17 +10,18 @@ const INDEX_CORE3_ENABLED =
 
 export async function GET() {
   try {
-    const markets = INDEX_CORE3_ENABLED ? await getCoreIndexMarkets() : await getAllMarkets();
-    const indices = computePulse(markets);
+    const snapshot = await loadPublishedSnapshot();
+    const markets = snapshot ? null : INDEX_CORE3_ENABLED ? await getCoreIndexMarkets() : await getAllMarkets();
+    const indices = snapshot?.pulse ?? computePulse(markets!);
 
     const body: PulseApiResponse = {
       indices,
-      computedAt: new Date().toISOString(),
+      computedAt: snapshot?.generatedAt ?? new Date().toISOString(),
     };
 
     return NextResponse.json(body, {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
         "Deprecation": "true",
         "Sunset": new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toUTCString(),
         "Link": '</api/indices?family=directional>; rel=\"successor-version\"',
