@@ -3,8 +3,14 @@ import type { ProcessedMarket, PulseIndex } from "./types";
 import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
 import { computePulse } from "./pulse";
+import { buildObservationDigest, type ObservationDigest } from "./observations";
 
-const MANIFEST_PATH = "predpulse/latest.json";
+const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
+const PREFIX = process.env.GITHUB_REF_NAME === OBSERVATIONS_BRANCH ||
+  process.env.VERCEL_GIT_COMMIT_REF === OBSERVATIONS_BRANCH
+  ? "predpulse/previews/spec-02"
+  : "predpulse";
+const MANIFEST_PATH = `${PREFIX}/latest.json`;
 const MAX_BYTES = 250_000;
 const SOURCE_FLOOR = 0.5;
 
@@ -14,6 +20,7 @@ export interface PublishedSnapshot {
   sourceCounts: Record<ProcessedMarket["source"], number>;
   markets: ProcessedMarket[];
   pulse: PulseIndex[];
+  observations?: ObservationDigest;
 }
 
 interface Manifest {
@@ -66,6 +73,13 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
       throw new Error("Invalid market in snapshot");
     }
   }
+  if (s.observations && (s.observations.asOf !== s.generatedAt ||
+      s.observations.source !== "polymarket" || !Array.isArray(s.observations.items) ||
+      s.observations.items.length > 3 ||
+      s.observations.items.some((item) => !item.eventUrl.startsWith("https://polymarket.com/event/") ||
+        !Number.isFinite(item.currentProbability) || !Number.isFinite(item.change24h)))) {
+    throw new Error("Invalid observation digest");
+  }
   return s;
 }
 
@@ -89,7 +103,7 @@ function validBlobUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === "https:" && parsed.hostname.endsWith(".private.blob.vercel-storage.com") &&
-      parsed.pathname.startsWith("/predpulse/");
+      parsed.pathname.startsWith(`/${PREFIX}/`);
   } catch { return false; }
 }
 
@@ -128,9 +142,10 @@ export async function loadPublishedSnapshot(): Promise<PublishedSnapshot | null>
 /** Publication is called by the scheduled GitHub runner, not a Vercel Function. */
 export async function publishSnapshot(sources: AllSourcesResult): Promise<PublishedSnapshot> {
   const previous = await loadPublishedSnapshot();
+  const generatedAt = new Date().toISOString();
   const snapshot = validateSnapshot({
     version: 1,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     sourceCounts: {
       polymarket: sources.polymarkets.length,
       kalshi: sources.kalshiMarkets.length,
@@ -138,13 +153,14 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     },
     markets: selectSnapshotMarkets(sources),
     pulse: computePulse([...sources.polymarkets, ...sources.kalshiMarkets]),
+    observations: buildObservationDigest(sources.polymarkets, generatedAt),
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
   const payload = JSON.stringify(snapshot);
   if (Buffer.byteLength(payload) > MAX_BYTES) throw new Error(`Snapshot exceeds ${MAX_BYTES} bytes`);
 
   // The generation is immutable; the short-lived manifest is the only mutable pointer.
-  const generation = await put(`predpulse/generations/${Date.now()}.json`, payload, {
+  const generation = await put(`${PREFIX}/generations/${Date.now()}.json`, payload, {
     access: "private", addRandomSuffix: false, contentType: "application/json", cacheControlMaxAge: 86400,
   });
   const oldManifest = await readManifest();

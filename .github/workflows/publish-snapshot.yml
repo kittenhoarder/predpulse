@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - feat/spec-01-snapshot-delivery
+      - feat/spec-02-trustworthy-observations
 
 permissions:
   contents: read
