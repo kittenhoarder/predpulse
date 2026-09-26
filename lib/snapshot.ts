@@ -78,7 +78,7 @@ export function isSafeSnapshot(candidate: PublishedSnapshot, previous: Published
 }
 
 async function readJson(path: string, bypassCache = false): Promise<unknown | null> {
-  const response = await get(path, { access: "public", useCache: !bypassCache });
+  const response = await get(path, { access: "private", useCache: !bypassCache });
   if (!response || response.statusCode !== 200) return null;
   // Keep the read bounded, including if a blob was accidentally overwritten.
   if (response.blob.size > MAX_BYTES + 50_000) throw new Error("Snapshot blob too large");
@@ -88,7 +88,7 @@ async function readJson(path: string, bypassCache = false): Promise<unknown | nu
 function validBlobUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" && parsed.hostname.endsWith(".public.blob.vercel-storage.com") &&
+    return parsed.protocol === "https:" && parsed.hostname.endsWith(".private.blob.vercel-storage.com") &&
       parsed.pathname.startsWith("/predpulse/");
   } catch { return false; }
 }
@@ -145,7 +145,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
 
   // The generation is immutable; the short-lived manifest is the only mutable pointer.
   const generation = await put(`predpulse/generations/${Date.now()}.json`, payload, {
-    access: "public", addRandomSuffix: false, contentType: "application/json", cacheControlMaxAge: 86400,
+    access: "private", addRandomSuffix: false, contentType: "application/json", cacheControlMaxAge: 86400,
   });
   const oldManifest = await readManifest();
   const manifest: Manifest = {
@@ -155,9 +155,9 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     generatedAt: snapshot.generatedAt,
   };
   await put(MANIFEST_PATH, JSON.stringify(manifest), {
-    access: "public", addRandomSuffix: false, allowOverwrite: true,
+    access: "private", addRandomSuffix: false, allowOverwrite: true,
     contentType: "application/json", cacheControlMaxAge: 60,
-    ...(oldManifest ? { ifMatch: (await get(MANIFEST_PATH, { access: "public", useCache: false }))?.blob.etag } : {}),
+    ...(oldManifest ? { ifMatch: (await get(MANIFEST_PATH, { access: "private", useCache: false }))?.blob.etag } : {}),
   });
   lastGood = snapshot;
   return snapshot;
