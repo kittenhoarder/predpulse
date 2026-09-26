@@ -101,6 +101,20 @@
   }
 }
 
+/* SVG units shrink with the viewBox on phones; use a wider, quicker drift there. */
+@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+  .landscape-layer { animation-name: landscape-drift-mobile; }
+  .landscape-layer-one { --landscape-drift: 22px; animation-duration: 12s; animation-delay: -2s; }
+  .landscape-layer-two { --landscape-drift: 24px; animation-duration: 14s; animation-delay: -6s; }
+  .landscape-layer-three { --landscape-drift: 23px; animation-duration: 11s; animation-delay: -8s; }
+  .landscape-layer-focus { --landscape-drift: 30px; animation-duration: 10s; animation-delay: -2s; }
+  .landscape-layer-accent { --landscape-drift: 24px; animation-duration: 13s; animation-delay: -9s; }
+  @keyframes landscape-drift-mobile {
+    0%, 100% { transform: translateX(calc(-1 * var(--landscape-drift))) scale(0.985, 0.97); }
+    50% { transform: translateX(var(--landscape-drift)) scale(1.015, 1.055); }
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
