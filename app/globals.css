@@ -74,14 +74,30 @@
 .landscape-amber-line { stroke: hsl(var(--landscape-amber) / 0.7); }
 .landscape-grid { stroke: hsl(var(--foreground) / 0.065); }
 .landscape-baseline { stroke: hsl(var(--landscape-blue) / 0.27); }
+.landscape-layer {
+  transform-box: view-box;
+  transform-origin: 50% 76.8%;
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .landscape-curves {
     animation: landscape-arrive 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+  .landscape-layer {
+    animation: landscape-drift 18s ease-in-out infinite;
+  }
+  .landscape-layer-one { --landscape-drift: 6px; animation-duration: 19s; animation-delay: -3s; }
+  .landscape-layer-two { --landscape-drift: 9px; animation-duration: 23s; animation-delay: -11s; }
+  .landscape-layer-three { --landscape-drift: 7px; animation-duration: 17s; animation-delay: -8s; }
+  .landscape-layer-focus { --landscape-drift: 11px; animation-duration: 21s; animation-delay: -5s; }
+  .landscape-layer-accent { --landscape-drift: 8px; animation-duration: 25s; animation-delay: -15s; }
   @keyframes landscape-arrive {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes landscape-drift {
+    0%, 100% { transform: translateX(calc(-1 * var(--landscape-drift))) scale(0.995, 0.98); }
+    50% { transform: translateX(var(--landscape-drift)) scale(1.005, 1.025); }
   }
 }
 
