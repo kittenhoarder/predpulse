@@ -29,6 +29,9 @@
     --chart-3: 350 70% 50%;
     --chart-4: 160 65% 38%;
     --chart-5: 280 55% 50%;
+    --landscape-blue: 206 62% 39%;
+    --landscape-teal: 174 75% 31%;
+    --landscape-amber: 35 80% 39%;
   }
 
   .dark {
@@ -56,6 +59,59 @@
     --chart-3: 350 75% 55%;
     --chart-4: 160 70% 42%;
     --chart-5: 280 60% 55%;
+    --landscape-blue: 210 80% 73%;
+    --landscape-teal: 174 73% 59%;
+    --landscape-amber: 39 86% 72%;
+  }
+}
+
+.landscape-blue-stop { stop-color: hsl(var(--landscape-blue)); }
+.landscape-teal-stop { stop-color: hsl(var(--landscape-teal)); }
+.landscape-amber-stop { stop-color: hsl(var(--landscape-amber)); }
+.landscape-background-stop { stop-color: hsl(var(--background)); }
+.landscape-blue-line { stroke: hsl(var(--landscape-blue) / 0.68); }
+.landscape-teal-line { stroke: hsl(var(--landscape-teal) / 0.9); }
+.landscape-amber-line { stroke: hsl(var(--landscape-amber) / 0.7); }
+.landscape-grid { stroke: hsl(var(--foreground) / 0.065); }
+.landscape-baseline { stroke: hsl(var(--landscape-blue) / 0.27); }
+.landscape-layer {
+  transform-box: view-box;
+  transform-origin: 50% 76.8%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .landscape-curves {
+    animation: landscape-arrive 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .landscape-layer {
+    animation: landscape-drift 18s ease-in-out infinite;
+  }
+  .landscape-layer-one { --landscape-drift: 6px; animation-duration: 19s; animation-delay: -3s; }
+  .landscape-layer-two { --landscape-drift: 9px; animation-duration: 23s; animation-delay: -11s; }
+  .landscape-layer-three { --landscape-drift: 7px; animation-duration: 17s; animation-delay: -8s; }
+  .landscape-layer-focus { --landscape-drift: 11px; animation-duration: 21s; animation-delay: -5s; }
+  .landscape-layer-accent { --landscape-drift: 8px; animation-duration: 25s; animation-delay: -15s; }
+  @keyframes landscape-arrive {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes landscape-drift {
+    0%, 100% { transform: translateX(calc(-1 * var(--landscape-drift))) scale(0.995, 0.98); }
+    50% { transform: translateX(var(--landscape-drift)) scale(1.005, 1.025); }
+  }
+}
+
+/* SVG units shrink with the viewBox on phones; use a wider, quicker drift there. */
+@media (max-width: 1023px) and (prefers-reduced-motion: no-preference) {
+  .landscape-layer { animation-name: landscape-drift-mobile; }
+  .landscape-layer-one { --landscape-drift: 22px; animation-duration: 12s; animation-delay: -2s; }
+  .landscape-layer-two { --landscape-drift: 24px; animation-duration: 14s; animation-delay: -6s; }
+  .landscape-layer-three { --landscape-drift: 23px; animation-duration: 11s; animation-delay: -8s; }
+  .landscape-layer-focus { --landscape-drift: 30px; animation-duration: 10s; animation-delay: -2s; }
+  .landscape-layer-accent { --landscape-drift: 24px; animation-duration: 13s; animation-delay: -9s; }
+  @keyframes landscape-drift-mobile {
+    0%, 100% { transform: translateX(calc(-1 * var(--landscape-drift))) scale(0.985, 0.97); }
+    50% { transform: translateX(var(--landscape-drift)) scale(1.015, 1.055); }
   }
 }
 
