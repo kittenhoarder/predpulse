@@ -28,9 +28,10 @@ describe("auditable observations", () => {
       market("wide", { spread: 0.10 }),
       market("closed", { endDate: asOf }),
       market("bad-baseline", { currentPrice: 10, oneDayChange: 30 }),
+      market("duplicate-copy", { question: "Will this happen? (copy)" }),
     ], asOf);
 
-    expect(digest.examined).toBe(7);
+    expect(digest.examined).toBe(8);
     expect(digest.eligible).toBe(3);
     expect(digest.items.map((item) => item.marketId)).toEqual(["a", "b"]);
     expect(digest.items[0]).toMatchObject({

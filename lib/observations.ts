@@ -34,6 +34,7 @@ export function buildObservationDigest(markets: ProcessedMarket[], asOf: string)
     const baseline = m.currentPrice - m.oneDayChange;
     const end = Date.parse(m.endDate);
     return /^[a-z0-9-]+$/i.test(m.eventSlug) &&
+      m.question.trim().length > 0 && !/\(copy\)\s*$/i.test(m.question) &&
       Number.isFinite(m.currentPrice) && m.currentPrice >= 2 && m.currentPrice <= 98 &&
       Number.isFinite(m.oneDayChange) && Math.abs(m.oneDayChange) >= 5 && Math.abs(m.oneDayChange) <= 50 &&
       baseline >= 0 && baseline <= 100 &&
