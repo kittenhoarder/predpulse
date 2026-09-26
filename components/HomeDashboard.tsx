@@ -4,7 +4,9 @@ import useSWR from "swr";
 import NewsroomSection from "./NewsroomSection";
 import PulseDashboard from "./PulseDashboard";
 import MarketTable from "./MarketTable";
+import ObservedMoves from "./ObservedMoves";
 import type { MarketsApiResponse, PulseApiResponse, ProcessedMarket } from "@/lib/types";
+import type { ObservationDigest } from "@/lib/observations";
 
 interface Bootstrap {
   markets: MarketsApiResponse;
@@ -12,6 +14,7 @@ interface Bootstrap {
   generatedAt: string;
   status: "hourly" | "delayed" | "stale";
   sourceCounts: Record<ProcessedMarket["source"], number>;
+  observations?: ObservationDigest | null;
 }
 
 async function fetchBootstrap(url: string): Promise<Bootstrap> {
@@ -42,6 +45,7 @@ export default function HomeDashboard() {
       ) : (
         <>
           {error && <div className="text-xs text-muted-foreground py-2">Saved snapshot unavailable; loading available sources.</div>}
+          {data && <ObservedMoves digest={data.observations} status={data.status} />}
           <PulseDashboard initialData={data?.pulse} />
           <div className="mb-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">

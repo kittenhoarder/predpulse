@@ -10,13 +10,13 @@ the read routes use their existing live-source fallback.
 
 To activate and verify the publisher:
 
-1. Connect a **public** Vercel Blob store to Predpulse. Vercel reads it through
+1. Connect a **private** Vercel Blob store to Predpulse. Vercel reads it through
    its connected `BLOB_STORE_ID` and rotating OIDC credentials. The Vercel
    connection does not need a static read-write token.
 2. Create a static Blob read-write token for the GitHub runner. Store it only in
    the repository Actions secret `PREDPULSE_BLOB_READ_WRITE_TOKEN`. Never commit
    or expose its value to the browser. This token can write to that Blob store.
-3. A push to `feat/spec-01-snapshot-delivery` triggers one pilot run. After it
+3. A push to `feat/spec-01-snapshot-delivery` or `feat/spec-02-trustworthy-observations` triggers a pilot run. After it
    succeeds, check `/api/bootstrap` on the newly deployed preview. Redeploy
    the preview if the Blob connection was added after its build.
 4. After merging, manually dispatch `Publish market snapshot` once. Scheduled
@@ -35,6 +35,29 @@ The initial visitor path no longer requests Kalshi candles or optional
 orderbooks and holders; the hourly publisher acquires candle history for its
 summary calculation. Live WebSocket prices can still update visible Polymarket
 rows, but the dated snapshot describes the base observation.
+
+## Evidence-backed observed moves (SPEC-02)
+
+The hourly publisher screens its full Polymarket ingest and attaches up to
+three observed moves to the existing snapshot. This adds no upstream requests
+or extra Blob writes. The homepage shows the venue-reported 24h probability
+change, current probability, 24h USD volume, USD liquidity, quoted spread,
+the observation timestamp, and a direct event link. The digest reports how
+many markets were examined and met the checks. No observation appears when
+none qualifies; delayed snapshots are explicitly labelled.
+
+The initial checks require a 5–50 percentage point change, $10k in both
+24h volume and liquidity, a positive spread no wider than 5 points, a valid
+price and inferred prior price, and a scheduled close at least 24 hours away.
+One market per event appears. These are descriptive changes, not causal
+explanations, trade recommendations, or performance claims. Kalshi and
+Manifold are excluded from this digest pending consistent baselines and units;
+they remain available in the market table. Older snapshot generations without
+the digest continue to render normally.
+The SPEC-02 branch pilot writes under `predpulse/previews/spec-02` so the
+hourly production publisher cannot overwrite the preview observation digest.
+The preview deployment selects this namespace via `VERCEL_GIT_COMMIT_REF`;
+Vercel's system environment variables must be exposed for branch previewing.
 
 **Prediction market intelligence dashboard.** Dated market snapshots, heatmap, sparklines, and trade activity across Polymarket, Kalshi, and Manifold.
 
