@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: "17 * * * *"
   workflow_dispatch:
+  # Allows a same-repository pilot before this workflow reaches the default branch.
+  push:
+    branches:
+      - feat/spec-01-snapshot-delivery
+
+permissions:
+  contents: read
 
 concurrency:
   group: predpulse-hourly-snapshot
@@ -12,13 +19,16 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
-      - name: Trigger the bounded publisher
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Acquire, validate and publish from the GitHub runner
         env:
-          SNAPSHOT_PUBLISH_SECRET: ${{ secrets.SNAPSHOT_PUBLISH_SECRET }}
-        run: |
-          test -n "$SNAPSHOT_PUBLISH_SECRET"
-          curl --fail-with-body --silent --show-error --max-time 290 \
-            -X POST https://predpulse.xyz/api/internal/publish \
-            -H "Authorization: Bearer $SNAPSHOT_PUBLISH_SECRET"
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREDPULSE_BLOB_READ_WRITE_TOKEN }}
+          INDEX_PERSISTENCE_ENABLED: "false"
+        run: npm run publish:snapshot

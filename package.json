@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "publish:snapshot": "node --import tsx scripts/publish-snapshot.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -39,6 +40,7 @@
     "eslint-config-next": "14.2.35",
     "postcss": "8.5.6",
     "tailwindcss": "3.4.17",
+    "tsx": "^4.23.15",
     "typescript": "5.7.3",
     "vitest": "2.1.8"
   }

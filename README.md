@@ -8,28 +8,28 @@ snapshot includes a **selected** research universe, not every market on each ven
 Its generation time appears above the data. If no snapshot has been published,
 the read routes use their existing live-source fallback.
 
-To activate the publisher after the feature branch is reviewed:
+To activate and verify the publisher:
 
-1. Create a **public** Vercel Blob store connected to the Predpulse project.
-   Vercel injects `BLOB_READ_WRITE_TOKEN` into Production; never commit this token.
-2. Generate a long random `SNAPSHOT_PUBLISH_SECRET`; set it as a Production
-   environment variable in Vercel and an Actions repository secret with the
-   same name in GitHub. Publish calls without it return 401.
-3. Deploy the branch, test POST `/api/internal/publish` against the preview using
-   the secret and inspect `/api/bootstrap` and `/api/markets` on the preview.
-   The scheduled workflow targets production and only runs on the default branch.
-4. After promotion to main, manually trigger `Publish market snapshot` once;
-   verify the generation time, selected counts, and Vercel Blob usage. Subsequent
-   scheduled jobs run hourly at minute 17, subject to GitHub scheduler delays.
+1. Connect a **public** Vercel Blob store to Predpulse. Vercel reads it through
+   its connected `BLOB_STORE_ID` and rotating OIDC credentials. The Vercel
+   connection does not need a static read-write token.
+2. Create a static Blob read-write token for the GitHub runner. Store it only in
+   the repository Actions secret `PREDPULSE_BLOB_READ_WRITE_TOKEN`. Never commit
+   or expose its value to the browser. This token can write to that Blob store.
+3. A push to `feat/spec-01-snapshot-delivery` triggers one pilot run. After it
+   succeeds, check `/api/bootstrap` on the newly deployed preview. Redeploy
+   the preview if the Blob connection was added after its build.
+4. After merging, manually dispatch `Publish market snapshot` once. Scheduled
+   runs use the default branch, hourly at minute 17, subject to GitHub delays.
 
 Each publication writes one immutable generation and one short-lived manifest
 pointer. A source failure or count collapse leaves the last generation active.
 The generated JSON is bounded to 250 KB. At most two routine Blob writes per
 hour yield 1,440 advanced operations in a 30-day month, before retries; monitor
-the project's **actual** shared Hobby allowance and function usage. Failed
-publication is visible as a failed GitHub Actions run. There is no new paid
-hosting requirement. Preview deployments without configured storage fall back to
-the existing live APIs.
+the project's **actual** shared Hobby allowance and transfer. Failed publication
+is visible as a failed GitHub Actions run. The runner performs all market
+ingestion and calculation; Vercel Functions only read published data on CDN
+misses. Preview deployments without configured storage fall back to live APIs.
 
 The initial visitor path no longer requests Kalshi candles or optional
 orderbooks and holders; the hourly publisher acquires candle history for its

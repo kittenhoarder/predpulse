@@ -125,7 +125,7 @@ export async function loadPublishedSnapshot(): Promise<PublishedSnapshot | null>
   return lastGood;
 }
 
-/** Publication is only called by the authenticated hourly route. */
+/** Publication is called by the scheduled GitHub runner, not a Vercel Function. */
 export async function publishSnapshot(sources: AllSourcesResult): Promise<PublishedSnapshot> {
   const previous = await loadPublishedSnapshot();
   const snapshot = validateSnapshot({
