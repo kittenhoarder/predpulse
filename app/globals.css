@@ -29,6 +29,9 @@
     --chart-3: 350 70% 50%;
     --chart-4: 160 65% 38%;
     --chart-5: 280 55% 50%;
+    --landscape-blue: 206 62% 39%;
+    --landscape-teal: 174 75% 31%;
+    --landscape-amber: 35 80% 39%;
   }
 
   .dark {
@@ -56,6 +59,29 @@
     --chart-3: 350 75% 55%;
     --chart-4: 160 70% 42%;
     --chart-5: 280 60% 55%;
+    --landscape-blue: 210 80% 73%;
+    --landscape-teal: 174 73% 59%;
+    --landscape-amber: 39 86% 72%;
+  }
+}
+
+.landscape-blue-stop { stop-color: hsl(var(--landscape-blue)); }
+.landscape-teal-stop { stop-color: hsl(var(--landscape-teal)); }
+.landscape-amber-stop { stop-color: hsl(var(--landscape-amber)); }
+.landscape-background-stop { stop-color: hsl(var(--background)); }
+.landscape-blue-line { stroke: hsl(var(--landscape-blue) / 0.68); }
+.landscape-teal-line { stroke: hsl(var(--landscape-teal) / 0.9); }
+.landscape-amber-line { stroke: hsl(var(--landscape-amber) / 0.7); }
+.landscape-grid { stroke: hsl(var(--foreground) / 0.065); }
+.landscape-baseline { stroke: hsl(var(--landscape-blue) / 0.27); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .landscape-curves {
+    animation: landscape-arrive 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes landscape-arrive {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 }
 
