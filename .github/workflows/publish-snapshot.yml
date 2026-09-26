@@ -1,0 +1,34 @@
+name: Publish market snapshot
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  # Allows a same-repository pilot before this workflow reaches the default branch.
+  push:
+    branches:
+      - feat/spec-01-snapshot-delivery
+
+permissions:
+  contents: read
+
+concurrency:
+  group: predpulse-hourly-snapshot
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Acquire, validate and publish from the GitHub runner
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREDPULSE_BLOB_READ_WRITE_TOKEN }}
+          INDEX_PERSISTENCE_ENABLED: "false"
+        run: npm run publish:snapshot

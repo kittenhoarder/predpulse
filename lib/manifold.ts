@@ -133,7 +133,7 @@ async function fetchManifoldBets(
   return result;
 }
 
-export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
+export async function fetchManifoldMarkets(options: { includeBets?: boolean } = {}): Promise<ProcessedMarket[]> {
   // Valid sort values: created-time | updated-time | last-bet-time | last-comment-time
   // The API has no type filter params — we filter client-side.
   const url =
@@ -180,7 +180,7 @@ export async function fetchManifoldMarkets(): Promise<ProcessedMarket[]> {
   const top200 = [...sizedEligible]
     .sort((a, b) => (b.volume24Hours ?? 0) - (a.volume24Hours ?? 0))
     .slice(0, 200);
-  const deltaMap = await fetchManifoldBets(top200.map((m) => m.id));
+  const deltaMap = options.includeBets ? await fetchManifoldBets(top200.map((m) => m.id)) : new Map<string, number>();
 
   const results: ProcessedMarket[] = [];
 

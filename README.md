@@ -1,6 +1,42 @@
 # Predpulse
 
-**Prediction market intelligence dashboard.** Real-time movers, heatmap, sparklines, and trade activity across Polymarket, Kalshi, and Manifold — the "CNBC Movers board" for prediction markets.
+## Hourly snapshot delivery (SPEC-01)
+
+The homepage requests `/api/bootstrap` once, then displays the latest saved market
+snapshot. The existing market and pulse API routes read that same snapshot. The
+snapshot includes a **selected** research universe, not every market on each venue.
+Its generation time appears above the data. If no snapshot has been published,
+the read routes use their existing live-source fallback.
+
+To activate and verify the publisher:
+
+1. Connect a **public** Vercel Blob store to Predpulse. Vercel reads it through
+   its connected `BLOB_STORE_ID` and rotating OIDC credentials. The Vercel
+   connection does not need a static read-write token.
+2. Create a static Blob read-write token for the GitHub runner. Store it only in
+   the repository Actions secret `PREDPULSE_BLOB_READ_WRITE_TOKEN`. Never commit
+   or expose its value to the browser. This token can write to that Blob store.
+3. A push to `feat/spec-01-snapshot-delivery` triggers one pilot run. After it
+   succeeds, check `/api/bootstrap` on the newly deployed preview. Redeploy
+   the preview if the Blob connection was added after its build.
+4. After merging, manually dispatch `Publish market snapshot` once. Scheduled
+   runs use the default branch, hourly at minute 17, subject to GitHub delays.
+
+Each publication writes one immutable generation and one short-lived manifest
+pointer. A source failure or count collapse leaves the last generation active.
+The generated JSON is bounded to 250 KB. At most two routine Blob writes per
+hour yield 1,440 advanced operations in a 30-day month, before retries; monitor
+the project's **actual** shared Hobby allowance and transfer. Failed publication
+is visible as a failed GitHub Actions run. The runner performs all market
+ingestion and calculation; Vercel Functions only read published data on CDN
+misses. Preview deployments without configured storage fall back to live APIs.
+
+The initial visitor path no longer requests Kalshi candles or optional
+orderbooks and holders; the hourly publisher acquires candle history for its
+summary calculation. Live WebSocket prices can still update visible Polymarket
+rows, but the dated snapshot describes the base observation.
+
+**Prediction market intelligence dashboard.** Dated market snapshots, heatmap, sparklines, and trade activity across Polymarket, Kalshi, and Manifold.
 
 Live: [predpulse.xyz](https://predpulse.xyz)
 
@@ -17,7 +53,7 @@ Live: [predpulse.xyz](https://predpulse.xyz)
 | Real-time | WebSocket (Kalshi + Polymarket CLOB) via `useMarketSocket` |
 | Hosting | Vercel |
 
-No database. No auth. No persistent cache layer for market ingestion. Every `/api/markets` call fetches live from all three sources in parallel.
+No database or user auth. The optional Blob snapshot is the persistent cache for market ingestion; without it the market API fetches live sources as a fallback.
 
 Index snapshot persistence is **opt-in** via `INDEX_PERSISTENCE_ENABLED=true` (default: disabled/in-memory).
 

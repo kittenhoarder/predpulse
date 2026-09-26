@@ -204,19 +204,20 @@ function SkeletonCard() {
 // Refined to a market-derived query once markets data is available.
 const DEFAULT_NEWS_QUERY = "election economy bitcoin federal reserve trump";
 
-const MARKETS_SWR_KEY = "/api/markets?sort=movers&category=all&offset=0&limit=50&hideSmall=true";
+const MARKETS_SWR_KEY = "/api/markets?sort=movers&category=all&offset=0&limit=50";
 
-export default function NewsroomSection() {
+export default function NewsroomSection({ initialMarkets }: { initialMarkets?: MarketsApiResponse }) {
   // Start with a default query so news fetch fires immediately on mount —
   // no waterfall waiting for market data first.
   const [newsQuery, setNewsQuery] = useState(DEFAULT_NEWS_QUERY);
 
   // Reuse the same market data already in-flight from MarketTable (SWR deduplicates)
-  const { data: marketsData } = useSWR<MarketsApiResponse>(
-    MARKETS_SWR_KEY,
+  const { data: fallbackMarkets } = useSWR<MarketsApiResponse>(
+    initialMarkets ? null : MARKETS_SWR_KEY,
     fetcher,
-    { refreshInterval: 60_000, revalidateOnFocus: false }
+    { refreshInterval: 300_000, revalidateOnFocus: false }
   );
+  const marketsData = initialMarkets ?? fallbackMarkets;
 
   // Once markets load, refine the query to reflect actual active categories
   useEffect(() => {

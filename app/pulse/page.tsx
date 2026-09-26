@@ -1,15 +1,8 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { streamAllMarkets, isCacheWarm } from "@/lib/cached-sources";
-import { computePulse } from "@/lib/pulse";
-import type { PulseApiResponse } from "@/lib/types";
 import PulseDashboard from "@/components/PulseDashboard";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ChevronLeft } from "lucide-react";
-
-// Streaming RSC — shell renders immediately; PulseSection streams in when data is ready.
-// No force-dynamic needed: Next.js infers dynamic rendering from the async data fetch.
 
 export const metadata: Metadata = {
   alternates: { canonical: "/pulse" },
@@ -33,19 +26,6 @@ export const metadata: Metadata = {
     description: "Real-time prediction market sentiment across Polymarket & Kalshi",
   },
 };
-
-// Async RSC that streams Pulse data — renders when getCachedSources() resolves
-async function PulseSection() {
-  if (!isCacheWarm()) return <PulseDashboard large />;
-  try {
-    const markets = await streamAllMarkets();
-    const indices = computePulse(markets);
-    const initialData: PulseApiResponse = { indices, computedAt: new Date().toISOString() };
-    return <PulseDashboard initialData={initialData} large />;
-  } catch {
-    return <PulseDashboard large />;
-  }
-}
 
 export default function PulsePage() {
   return (
@@ -89,15 +69,7 @@ export default function PulsePage() {
           </div>
         </div>
 
-        <Suspense
-          fallback={
-            <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
-              Computing Pulse…
-            </div>
-          }
-        >
-          <PulseSection />
-        </Suspense>
+        <PulseDashboard large />
 
         {/* Methodology disclosure */}
         <div className="mt-8 p-4 rounded-xl border border-border bg-muted/20 text-xs text-muted-foreground space-y-1.5">
@@ -109,7 +81,7 @@ export default function PulsePage() {
           </p>
           <p>
             Confidence reflects data freshness, source agreement, and feature coverage.
-            Snapshot history updates every 5 minutes. Not financial advice.
+            The published score updates hourly when a saved snapshot is available. Not financial advice.
           </p>
         </div>
       </main>

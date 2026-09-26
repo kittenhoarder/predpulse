@@ -19,20 +19,16 @@ const CORE_INDEX_FLOOR_KEEP_ALL = 8;
 //
 // Two-tier TTL:
 //   SOFT: return cached + kick off a background refresh (invisible to caller)
-//   HARD: cache fully expired — block and wait for a fresh fetch
+//   HARD: serve the last good data while refreshing, including after expiry.
 //
 // Promise deduplication ensures concurrent cold-start requests share one fetch,
 // preventing N parallel full-source round-trips under load.
 // ---------------------------------------------------------------------------
 
 const CACHE_SOFT_TTL_MS = 240_000; // 4 min — trigger background refresh
-const CACHE_HARD_TTL_MS = 300_000; // 5 min — block and fetch if exceeded
-// Maximum time to wait on a cold fetch before returning [] (lets other sources
-// still render; the slow source retries on the next request).
-// Set above the observed worst-case cold-fetch time (~25s with Kalshi serial
-// pagination + candlesticks) to prevent premature timeouts that trigger false
-// empty-source retries and duplicate fetches.
-const COLD_FETCH_TIMEOUT_MS = 32_000; // 32s
+const CACHE_HARD_TTL_MS = 300_000; // 5 min — freshness warning threshold
+// Bound the visitor fallback. The publisher awaits the complete acquisition.
+const COLD_FETCH_TIMEOUT_MS = 12_000;
 
 interface SourceCacheEntry {
   data: ProcessedMarket[];
@@ -43,26 +39,42 @@ const sourceCache = new Map<string, SourceCacheEntry>();
 // One in-flight promise per source key — deduplicates concurrent cold fetches
 const inflightFetch = new Map<string, Promise<ProcessedMarket[]>>();
 
-function getCachedEntry(key: string): SourceCacheEntry | null {
-  return sourceCache.get(key) ?? null;
+function setCache(key: string, data: ProcessedMarket[]): void {
+  // An upstream failure may return an empty array. It must not evict last-good data.
+  if (data.length > 0) sourceCache.set(key, { data, cachedAt: Date.now() });
 }
 
-function setCache(key: string, data: ProcessedMarket[]): void {
-  sourceCache.set(key, { data, cachedAt: Date.now() });
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, key: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[get-markets] ${key} timed out after ${ms}ms`);
+      resolve(fallback);
+    }, ms);
+  });
+  return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
 }
 
 /**
  * Fetch a source with stale-while-revalidate semantics:
  *  - Fresh (< SOFT_TTL):    return immediately, no fetch
  *  - Stale (SOFT–HARD TTL): return stale data immediately; refresh in background
- *  - Expired (> HARD_TTL):  block until fresh data is available
+ *  - Expired (> HARD_TTL):  serve the last good value while refreshing
  * Promise deduplication prevents duplicate fetches for the same key.
  */
 async function fetchWithSWR(
   key: string,
   fetcher: () => Promise<ProcessedMarket[]>,
+  fresh = false,
 ): Promise<ProcessedMarket[]> {
-  const entry = getCachedEntry(key);
+  // The hourly publisher must await a completed acquisition, not a visitor timeout
+  // or a process-local stale entry.
+  if (fresh) {
+    const data = await fetcher();
+    setCache(key, data);
+    return data;
+  }
+  const entry = sourceCache.get(key);
   const age = entry ? Date.now() - entry.cachedAt : Infinity;
 
   if (entry && age < CACHE_SOFT_TTL_MS) {
@@ -70,48 +82,33 @@ async function fetchWithSWR(
     return entry.data;
   }
 
-  if (entry && age < CACHE_HARD_TTL_MS) {
+  if (entry) {
     // Stale but usable — serve from cache and refresh in background
     if (!inflightFetch.has(key)) {
       const bg = fetcher()
         .then((data) => { setCache(key, data); return data; })
+        .catch((err) => { console.warn(`[get-markets] ${key} refresh failed`, err); return entry.data; })
         .finally(() => inflightFetch.delete(key));
       inflightFetch.set(key, bg);
     }
+    if (age >= CACHE_HARD_TTL_MS) console.info(`[get-markets] serving stale ${key} while refreshing`);
     return entry.data;
   }
 
-  // Fully expired (or first load) — block on fetch, deduplicating concurrent callers.
+  // First load — block on fetch, deduplicating concurrent callers.
   // Race against COLD_FETCH_TIMEOUT_MS: if the source is still slow, return []
   // so other sources can render. The inflight promise keeps running and will
   // populate the cache when it eventually resolves.
   if (inflightFetch.has(key)) {
-    const timeout = new Promise<ProcessedMarket[]>((resolve) =>
-      setTimeout(() => {
-        console.warn(`[get-markets] ${key} timed out after ${COLD_FETCH_TIMEOUT_MS}ms (inflight)`);
-        resolve([]);
-      }, COLD_FETCH_TIMEOUT_MS)
-    );
-    return Promise.race([
-      inflightFetch.get(key)!,
-      timeout,
-    ]);
+    return withTimeout(inflightFetch.get(key)!, COLD_FETCH_TIMEOUT_MS, [], key);
   }
 
   const promise = fetcher()
     .then((data) => { setCache(key, data); return data; })
+    .catch((err) => { console.warn(`[get-markets] ${key} cold fetch failed`, err); return []; })
     .finally(() => inflightFetch.delete(key));
   inflightFetch.set(key, promise);
-  const timeout = new Promise<ProcessedMarket[]>((resolve) =>
-    setTimeout(() => {
-      console.warn(`[get-markets] ${key} timed out after ${COLD_FETCH_TIMEOUT_MS}ms (cold)`);
-      resolve([]);
-    }, COLD_FETCH_TIMEOUT_MS)
-  );
-  return Promise.race([
-    promise,
-    timeout,
-  ]);
+  return withTimeout(promise, COLD_FETCH_TIMEOUT_MS, [], key);
 }
 
 // ---------------------------------------------------------------------------
@@ -136,14 +133,11 @@ export function filterByCategory(
 // Polymarket + Manifold: volume24h OR liquidity (either qualifies).
 // Kalshi: liquidity only — open_interest is the liquidity proxy; volume24h
 // is legitimately 0 on quiet days for otherwise meaningful markets.
-export const SIZE_THRESHOLDS: Record<
-  ProcessedMarket["source"],
-  { volume24h: number | null; liquidity: number }
-> = {
+export const SIZE_THRESHOLDS = {
   polymarket: { volume24h: 1_000, liquidity: 5_000 },
   kalshi:     { volume24h: null,  liquidity: 500   },
   manifold:   { volume24h: 100,   liquidity: 500   },
-};
+} satisfies Record<ProcessedMarket["source"], { volume24h: number | null; liquidity: number }>;
 
 /**
  * Filter markets below per-source size thresholds.
@@ -355,7 +349,7 @@ const SMART_MONEY_ENABLED = process.env.ENABLE_SMART_MONEY === "1";
 // Per-source fetchers (with cache)
 // ---------------------------------------------------------------------------
 
-async function fetchPolymarkets(): Promise<ProcessedMarket[]> {
+async function fetchPolymarkets(fresh = false): Promise<ProcessedMarket[]> {
   return fetchWithSWR("polymarket", async () => {
     const [events, tags] = await Promise.all([fetchAllActiveEvents(), fetchTags()]);
     const tagMap = buildTagMap(tags);
@@ -371,27 +365,27 @@ async function fetchPolymarkets(): Promise<ProcessedMarket[]> {
     }
 
     const [obMap, smMap] = await Promise.all([
-      ORDERBOOK_DEPTH_ENABLED
+      fresh && ORDERBOOK_DEPTH_ENABLED
         ? fetchPolymarketOrderbooks(tokenIds).catch(() => new Map())
         : Promise.resolve(new Map<string, import("./gamma").PolymarketOrderbookDepth>()),
-      SMART_MONEY_ENABLED
+      fresh && SMART_MONEY_ENABLED
         ? fetchPolymarketSmartMoney(conditionIds).catch(() => new Map())
         : Promise.resolve(new Map<string, import("./gamma").PolymarketSmartMoney>()),
     ]);
 
     return processEvents(events, tagMap, obMap, smMap);
-  }).catch((err) => {
+  }, fresh).catch((err) => {
     console.error("[get-markets] Polymarket fetch failed:", err);
     return [];
   });
 }
 
-async function fetchKalshi(): Promise<ProcessedMarket[]> {
+async function fetchKalshi(fresh = false): Promise<ProcessedMarket[]> {
   return fetchWithSWR("kalshi", async () => {
-    const { markets, candleMap, seriesMap } = await fetchAllKalshiMarkets();
+    const { markets, candleMap, seriesMap } = await fetchAllKalshiMarkets({ includeCandles: fresh });
 
     let obMap = new Map<string, import("./kalshi").KalshiOrderbookDepth>();
-    if (ORDERBOOK_DEPTH_ENABLED) {
+    if (fresh && ORDERBOOK_DEPTH_ENABLED) {
       // Cap at 50 top-OI tickers — serial orderbook fetches at 15s timeout each
       // would take hours for the full market set. 50 covers the most liquid markets
       // that actually move the Pulse orderflow signal.
@@ -404,14 +398,14 @@ async function fetchKalshi(): Promise<ProcessedMarket[]> {
     }
 
     return processKalshiMarkets(markets, candleMap, obMap, seriesMap);
-  }).catch((err) => {
+  }, fresh).catch((err) => {
     console.error("[get-markets] Kalshi fetch failed:", err);
     return [];
   });
 }
 
-async function fetchManifold(): Promise<ProcessedMarket[]> {
-  return fetchWithSWR("manifold", async () => fetchManifoldMarkets()).catch((err) => {
+async function fetchManifold(fresh = false): Promise<ProcessedMarket[]> {
+  return fetchWithSWR("manifold", async () => fetchManifoldMarkets({ includeBets: fresh }), fresh).catch((err) => {
     console.error("[get-markets] Manifold fetch failed:", err);
     return [];
   });
@@ -446,42 +440,16 @@ export interface AllSourcesResult {
  * can derive both paginated (getMarkets) and full (getAllMarkets) views from a
  * single upstream round-trip.
  */
-export async function fetchAllSources(): Promise<AllSourcesResult> {
+export async function fetchAllSources(options: { fresh?: boolean; source?: GetMarketsOptions["source"] } = {}): Promise<AllSourcesResult> {
   const t0 = Date.now();
+  const include = (source: ProcessedMarket["source"]) => !options.source || options.source === "all" || options.source === source;
   const [initialPolymarkets, initialKalshiMarkets, manifoldMarkets] = await Promise.all([
-    fetchPolymarkets(),
-    fetchKalshi(),
-    fetchManifold(),
+    include("polymarket") ? fetchPolymarkets(options.fresh) : Promise.resolve([]),
+    include("kalshi") ? fetchKalshi(options.fresh) : Promise.resolve([]),
+    include("manifold") ? fetchManifold(options.fresh) : Promise.resolve([]),
   ]);
-  let polymarkets = initialPolymarkets;
-  let kalshiMarkets = initialKalshiMarkets;
-
-  // Reliability-first guard: if a core source returned empty (timed out before
-  // its inflight promise completed), wait briefly and re-read from the SWR cache.
-  // Both sources are checked in parallel — sequential waits would add 6s total
-  // in the worst case (both timed out), parallel waits cap the overhead at 3s.
-  // We do NOT call fetchPolymarkets()/fetchKalshi() directly here — those bypass
-  // inflight deduplication and would launch a second upstream fetch if the original
-  // is still running. The 3s wait lets the inflight promise complete first.
-  const needsPolyRetry = polymarkets.length === 0;
-  const needsKalshiRetry = kalshiMarkets.length === 0;
-  if (needsPolyRetry) console.warn("[get-markets] Polymarket empty on first pass; waiting for inflight");
-  if (needsKalshiRetry) console.warn("[get-markets] Kalshi empty on first pass; waiting for inflight");
-
-  if (needsPolyRetry || needsKalshiRetry) {
-    const [resolvedPoly, resolvedKalshi] = await Promise.all([
-      needsPolyRetry
-        ? new Promise<void>((r) => setTimeout(r, 3_000))
-            .then(() => getCachedEntry("polymarket")?.data ?? fetchPolymarkets())
-        : Promise.resolve(polymarkets),
-      needsKalshiRetry
-        ? new Promise<void>((r) => setTimeout(r, 3_000))
-            .then(() => getCachedEntry("kalshi")?.data ?? fetchKalshi())
-        : Promise.resolve(kalshiMarkets),
-    ]);
-    polymarkets = resolvedPoly;
-    kalshiMarkets = resolvedKalshi;
-  }
+  const polymarkets = initialPolymarkets;
+  const kalshiMarkets = initialKalshiMarkets;
 
   const dt = Date.now() - t0;
   console.info(
@@ -509,7 +477,7 @@ export async function getMarkets(
   const fetchedAt = new Date().toISOString();
 
   const { polymarkets, kalshiMarkets, manifoldMarkets } =
-    sources ?? (await fetchAllSources());
+    sources ?? (await fetchAllSources({ source }));
 
   let markets: ProcessedMarket[];
   if (source === "polymarket") markets = polymarkets;

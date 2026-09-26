@@ -20,7 +20,9 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
     fetchPulseApi,
     {
       fallbackData: initialData,
-      refreshInterval: 120_000,
+      revalidateOnMount: !initialData,
+      revalidateIfStale: !initialData,
+      refreshInterval: 300_000,
       revalidateOnFocus: false,
     }
   );
@@ -64,9 +66,7 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
       {/* Empty state */}
       {!isLoading && indices.length === 0 && (
         <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          {error
-            ? "Still warming up — retrying automatically."
-            : "Data is loading (MVP cold start). Caching improvements are in progress."}
+          {error ? "Index data is unavailable. Retry by refreshing this page." : "No index data is available yet."}
         </div>
       )}
 

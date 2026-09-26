@@ -313,7 +313,7 @@ export async function fetchKalshiCandlesticks(
  *      including previous_price_dollars for direct 24h change computation.
  *   3. Fetch daily candlesticks in batch for tickers above the OI floor.
  */
-export async function fetchAllKalshiMarkets(): Promise<{
+export async function fetchAllKalshiMarkets(options: { includeCandles?: boolean } = {}): Promise<{
   markets: KalshiMarket[];
   candleMap: Map<string, KalshiCandle[]>;
   seriesMap: Map<string, KalshiSeries>;
@@ -368,13 +368,13 @@ export async function fetchAllKalshiMarkets(): Promise<{
   // Step 3: Pull daily candle history in batches to recover 7d/30d metrics.
   // Only fetch candles for markets above KALSHI_CANDLE_MIN_OI — cuts batch
   // requests 3–5x (e.g. 2,000 tickers → ~400–600).
-  const activeTickers = allMarkets
+  const activeTickers = options.includeCandles ? allMarkets
     .filter(
       (m) =>
         m.status === "active" &&
         parseFloat(m.open_interest_fp ?? "0") >= KALSHI_CANDLE_MIN_OI,
     )
-    .map((m) => m.ticker);
+    .map((m) => m.ticker) : [];
   const candleMap = await fetchKalshiCandlesticks(activeTickers).catch(() => new Map());
 
   return { markets: allMarkets, candleMap, seriesMap };

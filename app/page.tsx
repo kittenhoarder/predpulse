@@ -1,41 +1,6 @@
-import { Suspense } from "react";
-import MarketTable from "@/components/MarketTable";
-import PulseDashboard from "@/components/PulseDashboard";
 import HeaderBar from "@/components/HeaderBar";
 import HeroSection from "@/components/HeroSection";
-import NewsroomSection from "@/components/NewsroomSection";
-import { streamAllMarkets, streamGetMarkets, isCacheWarm } from "@/lib/cached-sources";
-import { computePulse } from "@/lib/pulse";
-import type { PulseApiResponse, MarketsApiResponse } from "@/lib/types";
-
-// ---------------------------------------------------------------------------
-// Async RSC sections — stream server-side data when cache is warm.
-// On cold start (cache empty) they render immediately with no data,
-// deferring to client-side SWR — this prevents blocking the entire
-// Next.js rendering queue during the first upstream fetch.
-// ---------------------------------------------------------------------------
-
-async function PulseSection() {
-  if (!isCacheWarm()) return <PulseDashboard />;
-  try {
-    const markets = await streamAllMarkets();
-    const indices = computePulse(markets);
-    const initialData: PulseApiResponse = { indices, computedAt: new Date().toISOString() };
-    return <PulseDashboard initialData={initialData} />;
-  } catch {
-    return <PulseDashboard />;
-  }
-}
-
-async function MarketsSection() {
-  if (!isCacheWarm()) return <MarketTable />;
-  try {
-    const initialData: MarketsApiResponse = await streamGetMarkets({ sort: "movers", category: "all", offset: 0 });
-    return <MarketTable initialData={initialData} />;
-  } catch {
-    return <MarketTable />;
-  }
-}
+import HomeDashboard from "@/components/HomeDashboard";
 
 // ---------------------------------------------------------------------------
 // Page shell — renders instantly (static HTML), data sections stream in
@@ -71,29 +36,7 @@ export default function HomePage() {
 
       {/* Page content */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pb-6 flex flex-col">
-        {/* Newsroom — news-first intelligence layer; skeletons show immediately */}
-        <NewsroomSection />
-
-        <Suspense fallback={null}>
-          <PulseSection />
-        </Suspense>
-
-        {/* "Markets" label */}
-        <div className="mb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
-            Markets
-          </span>
-        </div>
-
-        <Suspense
-          fallback={
-            <div className="h-96 flex items-center justify-center text-muted-foreground text-sm">
-              Loading markets…
-            </div>
-          }
-        >
-          <MarketsSection />
-        </Suspense>
+        <HomeDashboard />
       </main>
 
       {/* Footer */}
