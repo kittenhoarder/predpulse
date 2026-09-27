@@ -3,25 +3,22 @@
  * All reads/writes are synchronous and safe to call on the client only.
  */
 
-// One-time migration from the old "predmove" key — runs once on first client load
-if (typeof window !== "undefined") {
-  try {
-    const old = localStorage.getItem("predmove:watchlist");
-    if (old) {
-      localStorage.setItem("predpulse:watchlist", old);
-      localStorage.removeItem("predmove:watchlist");
-    }
-  } catch {
-    // localStorage unavailable (private mode)
-  }
-}
+const KEY = "predpulse:watchlist:v2";
+export const WATCHLIST_CHANGE = "predpulse:watchlist-change";
 
-const KEY = "predpulse:watchlist";
+export function savedMarketKey(source: string, id: string): string {
+  return `${source}:${id}`;
+}
 
 export function getWatchlist(): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(KEY);
+    if (raw === null) {
+      // Legacy IDs have no venue. Retain them until a user toggles that market.
+      raw = localStorage.getItem("predpulse:watchlist") ?? localStorage.getItem("predmove:watchlist");
+      if (raw !== null) localStorage.setItem(KEY, raw);
+    }
     return new Set(raw ? (JSON.parse(raw) as string[]) : []);
   } catch {
     return new Set();
@@ -37,17 +34,21 @@ export function saveWatchlist(ids: Set<string>): void {
   }
 }
 
-export function toggleWatchlist(id: string): boolean {
+export function toggleWatchlist(id: string, source?: string): boolean {
   const current = getWatchlist();
-  if (current.has(id)) {
-    current.delete(id);
+  const key = source ? savedMarketKey(source, id) : id;
+  if (current.has(key) || (source && current.has(id))) {
+    current.delete(key);
+    if (source) current.delete(id);
   } else {
-    current.add(id);
+    current.add(key);
   }
   saveWatchlist(current);
-  return current.has(id);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(WATCHLIST_CHANGE));
+  return current.has(key);
 }
 
-export function isWatchlisted(id: string): boolean {
-  return getWatchlist().has(id);
+export function isWatchlisted(id: string, source?: string): boolean {
+  const saved = getWatchlist();
+  return saved.has(id) || Boolean(source && saved.has(savedMarketKey(source, id)));
 }

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
-import { getWatchlist } from "@/lib/watchlist";
+import { getWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
 import { useMarketSocket } from "@/lib/hooks/useMarketSocket";
 import SortTabs from "./SortTabs";
 import CategoryFilter from "./CategoryFilter";
@@ -125,6 +125,15 @@ export default function MarketTable({
   const refreshWatchlist = useCallback(() => {
     try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
   }, []);
+
+  useEffect(() => {
+    window.addEventListener(WATCHLIST_CHANGE, refreshWatchlist);
+    window.addEventListener("storage", refreshWatchlist);
+    return () => {
+      window.removeEventListener(WATCHLIST_CHANGE, refreshWatchlist);
+      window.removeEventListener("storage", refreshWatchlist);
+    };
+  }, [refreshWatchlist]);
 
   const serverLimit = MARKETS_DOUBLE_PAGE_ENABLED ? SERVER_PAGE_SIZE : LEGACY_PAGE_SIZE;
   const serverOffset = MARKETS_DOUBLE_PAGE_ENABLED

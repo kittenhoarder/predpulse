@@ -25,7 +25,7 @@ export interface ObservationDigest {
   items: MarketObservation[];
 }
 
-function candidate(m: ProcessedMarket, now: number): MarketObservation | null {
+export function screenObservation(m: ProcessedMarket, now: number): MarketObservation | null {
   const kalshi = m.source === "kalshi";
   if (m.source !== "polymarket" && !kalshi) return null;
 
@@ -75,7 +75,7 @@ export function buildObservationDigest(markets: ProcessedMarket[], asOf: string)
     if (market.source !== "polymarket" && market.source !== "kalshi") continue;
     const source = market.source;
     coverage[source].examined++;
-    const item = candidate(market, now);
+    const item = screenObservation(market, now);
     if (!item) continue;
     coverage[source].eligible++;
     bySource[source].push(item);

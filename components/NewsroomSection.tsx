@@ -229,7 +229,7 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
   }, [marketsData]);
 
   // Fetch news via the server-side proxy (no CORS issues, cached at edge 5min)
-  const { data: newsData, isLoading: newsLoading } = useSWR<{ articles: NewsArticle[] }>(
+  const { data: newsData, isLoading: newsLoading } = useSWR<{ articles: NewsArticle[]; unavailable?: boolean }>(
     `/api/news?q=${encodeURIComponent(newsQuery)}`,
     fetcher,
     { refreshInterval: 300_000, revalidateOnFocus: false, keepPreviousData: true }
@@ -256,7 +256,7 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
   // Show skeletons while loading, hide section only after a confirmed empty response
   const showSkeleton = newsLoading && articles.length === 0;
   const isEmpty = !newsLoading && articles.length === 0;
-  if (isEmpty) return null;
+  if (isEmpty && !newsData?.unavailable) return null;
 
   return (
     <section className="py-3">
@@ -267,7 +267,9 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
         </span>
       </div>
 
-      {showSkeleton ? (
+      {newsData?.unavailable && isEmpty ? (
+        <p role="status" className="rounded-lg border border-border p-3 text-xs text-muted-foreground">News is temporarily unavailable from the provider.</p>
+      ) : showSkeleton ? (
         /* Skeleton grid — visible immediately on mount */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
