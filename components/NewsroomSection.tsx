@@ -232,11 +232,11 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
     [marketsData?.markets]
   );
 
-  // Match each article to the most relevant prediction markets — cap at 6 for 3-row grid
+  // Keep one visual row before the monitor; match each story to relevant markets.
   const stories: StoryWithMarkets[] = useMemo(
     () =>
       articles
-        .slice(0, 6)
+        .slice(0, 3)
         .map((article) => ({
           article,
           markets: matchArticlesToMarkets(article.title, allMarkets, 3),
@@ -261,12 +261,12 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
       {newsData?.unavailable && isEmpty ? (
         <p role="status" className="text-xs text-muted-foreground">News feed temporarily unavailable.</p>
       ) : showSkeleton ? (
-        /* Skeleton grid — visible immediately on mount */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
+        <>
+          <div className="sm:hidden flex gap-3 overflow-hidden -mx-4 px-4"><div className="w-[85vw] shrink-0"><SkeletonCard /></div></div>
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        </>
       ) : (
         <>
           {/* Mobile: horizontal snap-scroll strip */}
