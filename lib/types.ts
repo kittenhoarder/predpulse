@@ -12,6 +12,7 @@ export interface KalshiMarket {
   yes_ask_dollars: string;        // e.g. "0.5600"
   last_price_dollars: string;     // e.g. "0.5500" — current last traded price
   previous_price_dollars?: string; // last traded price 24h ago — from nested markets API
+  previous_yes_ask_dollars?: string; // previous YES ask quote, for like-for-like quote change
   volume_24h_fp: string;          // 24h volume as FixedPoint string
   volume_fp: string;              // lifetime volume as FixedPoint string
   open_interest_fp: string;       // open contracts as FixedPoint string
@@ -136,6 +137,10 @@ export interface ProcessedMarket {
   currentPrice: number;
   // Price changes as percentage points (oneDayPriceChange * 100)
   oneDayChange: number;
+  kalshiAskChangeAvailable?: boolean;
+  // Kalshi only: comparable last-trade prices from the exchange's current and
+  // previous reference, independent of the displayed YES ask quote.
+  kalshiTradeMove24h?: { currentPrice: number; previousPrice: number; change: number };
   oneHourChange: number;
   oneWeekChange: number;
   oneMonthChange: number;

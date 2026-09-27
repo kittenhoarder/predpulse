@@ -4,9 +4,15 @@ export function formatCurrency(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
+export function formatContracts(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M ct`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K ct`;
+  return `${value.toFixed(0)} ct`;
+}
+
 export function formatChange(change: number): string {
   const sign = change > 0 ? "+" : "";
-  return `${sign}${change.toFixed(1)}%`;
+  return `${sign}${change.toFixed(1)} pp`;
 }
 
 /**

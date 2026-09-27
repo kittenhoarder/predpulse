@@ -7,7 +7,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
 import ExpandedPanel from "./ExpandedPanel";
 import { isWatchlisted, toggleWatchlist } from "@/lib/watchlist";
-import { formatCurrency, formatChange, marketTradeUrl } from "@/lib/format";
+import { formatCurrency, formatContracts, formatChange, marketTradeUrl } from "@/lib/format";
 
 export { formatCurrency, formatChange };
 
@@ -154,18 +154,24 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
                   : "text-red-500 border-red-500/30 bg-red-500/10"
             }`}
           >
-            {formatChange(market.oneDayChange)}
+            {market.source === "kalshi" && market.kalshiAskChangeAvailable !== true
+              ? "—"
+              : formatChange(market.oneDayChange)}
           </Badge>
         </TableCell>
 
         {/* 24h volume */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          {formatCurrency(market.volume24h)}
+          <span title={market.source === "kalshi" ? "Contracts traded in 24h" : "24h volume in USD"}>
+            {market.source === "kalshi" ? formatContracts(market.volume24h) : formatCurrency(market.volume24h)}
+          </span>
         </TableCell>
 
         {/* Liquidity */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          {formatCurrency(market.liquidity)}
+          <span title={market.source === "kalshi" ? "Open interest in contracts" : "Liquidity in USD"}>
+            {market.source === "kalshi" ? formatContracts(market.liquidity) : formatCurrency(market.liquidity)}
+          </span>
         </TableCell>
 
         {/* Star + detail link + trade link */}

@@ -173,14 +173,26 @@ function processKalshiMarket(
   const liquidity = openInterest;
 
   const candles = candleMap.get(market.ticker) ?? [];
-  const { oneDayChange: candleOneDayChange, oneWeekChange, oneMonthChange, volume1wk, volume1mo } =
+  const { oneWeekChange, oneMonthChange, volume1wk, volume1mo } =
     deriveCandleMetrics(candles);
 
-  // previous_price_dollars is provided by the nested-markets API; prefer it over candle
-  // approximation since it's the authoritative 24h-ago price from the exchange.
-  const oneDayChange = market.previous_price_dollars
-    ? Math.round((fpToPercent(market.last_price_dollars) - fpToPercent(market.previous_price_dollars)) * 10) / 10
-    : candleOneDayChange;
+  // Keep the table's displayed YES ask and its change on the same quote basis.
+  // A missing previous quote cannot be represented as a measured 24h change.
+  const previousAsk = fpToPercent(market.previous_yes_ask_dollars);
+  const kalshiAskChangeAvailable = Boolean(market.previous_yes_ask_dollars && market.yes_ask_dollars &&
+    previousAsk > 0 && currentPrice > 0);
+  const oneDayChange = kalshiAskChangeAvailable
+    ? Math.round((currentPrice - previousAsk) * 10) / 10 : 0;
+
+  // The observed-move card uses last trade vs previous last trade instead.
+  // Never mix the last-trade delta with a current YES ask quote.
+  const currentTrade = fpToPercent(market.last_price_dollars);
+  const previousTrade = fpToPercent(market.previous_price_dollars);
+  const kalshiTradeMove24h = market.previous_price_dollars && market.last_price_dollars &&
+    currentTrade > 0 && currentTrade < 100 && previousTrade > 0 && previousTrade < 100
+    ? { currentPrice: currentTrade, previousPrice: previousTrade,
+        change: Math.round((currentTrade - previousTrade) * 10) / 10 }
+    : undefined;
 
   // Build a human-readable event slug from the event_ticker for URL construction
   const eventSlug = market.event_ticker?.toLowerCase() ?? market.ticker.toLowerCase();
@@ -214,6 +226,8 @@ function processKalshiMarket(
     image: "",
     currentPrice,
     oneDayChange,
+    kalshiAskChangeAvailable,
+    kalshiTradeMove24h,
     // Kalshi batch_candlesticks is daily only; 1h change remains 0
     oneHourChange: 0,
     oneWeekChange,

@@ -1,72 +1,96 @@
 import type { ProcessedMarket } from "./types";
 
+type Source = "polymarket" | "kalshi";
+
 export interface MarketObservation {
   marketId: string;
+  source: Source;
   question: string;
   eventUrl: string;
   category: string;
   currentProbability: number;
   change24h: number;
-  volume24hUsd: number;
-  liquidityUsd: number;
+  priceBasis: "market price" | "last trade price";
+  volume24h: number;
+  liquidity: number;
   spreadPoints: number;
 }
 
 export interface ObservationDigest {
+  version: 2;
   asOf: string;
-  source: "polymarket";
-  examined: number;
-  eligible: number;
+  coverage: Record<Source, { examined: number; eligible: number }>;
   items: MarketObservation[];
 }
 
-/**
- * An auditable digest of venue-reported 24h moves. Polymarket is the only
- * supported source until the Kalshi price baseline and volume units can be
- * represented consistently. No move is inferred from category sentiment.
- */
+function candidate(m: ProcessedMarket, now: number): MarketObservation | null {
+  const kalshi = m.source === "kalshi";
+  if (m.source !== "polymarket" && !kalshi) return null;
+
+  const move = kalshi ? m.kalshiTradeMove24h : undefined;
+  const current = kalshi ? move?.currentPrice : m.currentPrice;
+  const change = kalshi ? move?.change : m.oneDayChange;
+  const previous = kalshi ? move?.previousPrice : current! - change!;
+  const end = Date.parse(m.endDate);
+  const minActivity = kalshi ? 500 : 10_000;
+
+  if (!m.question?.trim() || /\(copy\)\s*$/i.test(m.question) ||
+      !Number.isFinite(current) || current! < 2 || current! > 98 ||
+      !Number.isFinite(change) || Math.abs(change!) < 5 || Math.abs(change!) > 50 ||
+      !Number.isFinite(previous) || previous! <= 0 || previous! >= 100 ||
+      !Number.isFinite(m.volume24h) || m.volume24h < minActivity ||
+      !Number.isFinite(m.liquidity) || m.liquidity < minActivity ||
+      !Number.isFinite(m.spread) || m.spread <= 0 || m.spread > 0.05 ||
+      !Number.isFinite(end) || end <= now + 24 * 60 * 60_000) return null;
+
+  const eventUrl = kalshi
+    ? /^[a-z0-9-]+$/i.test(m.eventSlug) ? `https://kalshi.com/markets/${m.eventSlug}` : null
+    : /^[a-z0-9-]+$/i.test(m.eventSlug) ? `https://polymarket.com/event/${m.eventSlug}` : null;
+  if (!eventUrl) return null;
+
+  return {
+    marketId: m.id, source: m.source as Source, question: m.question, eventUrl,
+    category: m.categories[0] || "Market", currentProbability: current!, change24h: change!,
+    priceBasis: kalshi ? "last trade price" : "market price", volume24h: m.volume24h,
+    liquidity: m.liquidity, spreadPoints: m.spread * 100,
+  };
+}
+
+/** Screens each venue in its own units and takes two distinct events per venue. */
 export function buildObservationDigest(markets: ProcessedMarket[], asOf: string): ObservationDigest {
   const now = Date.parse(asOf);
   if (!Number.isFinite(now)) throw new Error("Invalid observation timestamp");
 
-  const examined = markets.filter((m) => m.source === "polymarket");
-  const eligible = examined.filter((m) => {
-    const baseline = m.currentPrice - m.oneDayChange;
-    const end = Date.parse(m.endDate);
-    return /^[a-z0-9-]+$/i.test(m.eventSlug) &&
-      m.question.trim().length > 0 && !/\(copy\)\s*$/i.test(m.question) &&
-      Number.isFinite(m.currentPrice) && m.currentPrice >= 2 && m.currentPrice <= 98 &&
-      Number.isFinite(m.oneDayChange) && Math.abs(m.oneDayChange) >= 5 && Math.abs(m.oneDayChange) <= 50 &&
-      baseline >= 0 && baseline <= 100 &&
-      Number.isFinite(m.volume24h) && m.volume24h >= 10_000 &&
-      Number.isFinite(m.liquidity) && m.liquidity >= 10_000 &&
-      Number.isFinite(m.spread) && m.spread > 0 && m.spread <= 0.05 &&
-      Number.isFinite(end) && end > now + 24 * 60 * 60_000;
-  });
+  const coverage: ObservationDigest["coverage"] = {
+    polymarket: { examined: 0, eligible: 0 },
+    kalshi: { examined: 0, eligible: 0 },
+  };
+  const bySource: Record<Source, MarketObservation[]> = { polymarket: [], kalshi: [] };
 
-  // One market per event. Prefer a move backed by volume, while preventing a
-  // single exceptionally large market from crowding out all other events.
-  const seen = new Set<string>();
-  const items = [...eligible]
-    .sort((a, b) => Math.abs(b.oneDayChange) * Math.log10(1 + b.volume24h) -
-      Math.abs(a.oneDayChange) * Math.log10(1 + a.volume24h))
-    .filter((m) => {
-      if (seen.has(m.eventSlug)) return false;
-      seen.add(m.eventSlug);
-      return true;
-    })
-    .slice(0, 3)
-    .map((m) => ({
-      marketId: m.id,
-      question: m.question,
-      eventUrl: `https://polymarket.com/event/${m.eventSlug}`,
-      category: m.categories[0] || "Market",
-      currentProbability: m.currentPrice,
-      change24h: m.oneDayChange,
-      volume24hUsd: m.volume24h,
-      liquidityUsd: m.liquidity,
-      spreadPoints: m.spread * 100,
-    }));
+  for (const market of markets) {
+    if (market.source !== "polymarket" && market.source !== "kalshi") continue;
+    const source = market.source;
+    coverage[source].examined++;
+    const item = candidate(market, now);
+    if (!item) continue;
+    coverage[source].eligible++;
+    bySource[source].push(item);
+  }
 
-  return { asOf, source: "polymarket", examined: examined.length, eligible: eligible.length, items };
+  const items: MarketObservation[] = [];
+  for (const source of ["polymarket", "kalshi"] as const) {
+    const seenEvents = new Set<string>();
+    const selected = bySource[source]
+      .sort((a, b) => Math.abs(b.change24h) * Math.log10(1 + b.volume24h) -
+        Math.abs(a.change24h) * Math.log10(1 + a.volume24h))
+      .filter((item) => {
+        if (seenEvents.has(item.eventUrl)) return false;
+        seenEvents.add(item.eventUrl);
+        return true;
+      })
+      .slice(0, 2);
+    items.push(...selected);
+  }
+
+  return { version: 2, asOf, coverage, items };
 }

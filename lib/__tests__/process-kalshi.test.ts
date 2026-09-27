@@ -99,20 +99,23 @@ describe("processKalshiMarkets", () => {
     expect(processKalshiMarkets([noPrice])).toHaveLength(0);
   });
 
-  it("derives oneDayChange from previous_price_dollars when present", () => {
-    // last_price_dollars = 0.6000 (60%), previous_price_dollars = 0.5000 (50%) → +10pp
+  it("keeps the table change on the YES ask basis and stores the last-trade pair separately", () => {
     const market = {
       ...baseMarket,
       last_price_dollars: "0.6000",
       yes_ask_dollars: "0.6100",
+      previous_yes_ask_dollars: "0.5500",
       previous_price_dollars: "0.5000",
     };
     const result = processKalshiMarkets([market]);
     expect(result).toHaveLength(1);
-    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+    expect(result[0].currentPrice).toBe(61);
+    expect(result[0].oneDayChange).toBe(6);
+    expect(result[0].kalshiAskChangeAvailable).toBe(true);
+    expect(result[0].kalshiTradeMove24h).toEqual({ currentPrice: 60, previousPrice: 50, change: 10 });
   });
 
-  it("falls back to candle-derived oneDayChange when previous_price_dollars is absent", () => {
+  it("does not present daily candles or mismatched trade prices as a 24h ask change", () => {
     const candles: KalshiCandle[] = [
       { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.40, volume: 100, ts: 1 },
       { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.50, volume: 200, ts: 2 },
@@ -120,7 +123,8 @@ describe("processKalshiMarkets", () => {
     const candleMap = new Map([["KXTEST-YES", candles]]);
     const result = processKalshiMarkets([baseMarket], candleMap);
     expect(result).toHaveLength(1);
-    // candle-derived: (50 - 40) = 10pp
-    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+    expect(result[0].oneDayChange).toBe(0);
+    expect(result[0].kalshiAskChangeAvailable).toBe(false);
+    expect(result[0].kalshiTradeMove24h).toBeUndefined();
   });
 });

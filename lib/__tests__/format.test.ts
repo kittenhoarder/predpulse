@@ -20,14 +20,14 @@ describe("formatCurrency", () => {
 
 describe("formatChange", () => {
   it("adds + sign for positive values", () => {
-    expect(formatChange(5.3)).toBe("+5.3%");
+    expect(formatChange(5.3)).toBe("+5.3 pp");
   });
 
   it("shows - sign for negative values", () => {
-    expect(formatChange(-2.1)).toBe("-2.1%");
+    expect(formatChange(-2.1)).toBe("-2.1 pp");
   });
 
   it("shows no sign for zero", () => {
-    expect(formatChange(0)).toBe("0.0%");
+    expect(formatChange(0)).toBe("0.0 pp");
   });
 });

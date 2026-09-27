@@ -23,7 +23,12 @@ describe("auditable observations", () => {
       market("a", { oneDayChange: 12 }),
       market("a-other", { eventSlug: "a", oneDayChange: 7 }),
       market("b", { oneDayChange: -9 }),
-      market("kalshi", { source: "kalshi", oneDayChange: 30 }),
+      market("kalshi", { source: "kalshi", oneDayChange: 0, currentPrice: 70,
+        volume24h: 900, liquidity: 1_500,
+        kalshiTradeMove24h: { currentPrice: 60, previousPrice: 50, change: 10 } }),
+      market("kalshi-missing-trade", { source: "kalshi", volume24h: 900, liquidity: 1_500 }),
+      market("kalshi-low-oi", { source: "kalshi", volume24h: 900, liquidity: 300,
+        kalshiTradeMove24h: { currentPrice: 60, previousPrice: 50, change: 10 } }),
       market("no-trades", { volume24h: 0 }),
       market("wide", { spread: 0.10 }),
       market("closed", { endDate: asOf }),
@@ -31,18 +36,24 @@ describe("auditable observations", () => {
       market("duplicate-copy", { question: "Will this happen? (copy)" }),
     ], asOf);
 
-    expect(digest.examined).toBe(8);
-    expect(digest.eligible).toBe(3);
-    expect(digest.items.map((item) => item.marketId)).toEqual(["a", "b"]);
+    expect(digest.coverage).toEqual({
+      polymarket: { examined: 8, eligible: 3 },
+      kalshi: { examined: 3, eligible: 1 },
+    });
+    expect(digest.items.map((item) => item.marketId)).toEqual(["a", "b", "kalshi"]);
     expect(digest.items[0]).toMatchObject({
       eventUrl: "https://polymarket.com/event/a", change24h: 12,
-      volume24hUsd: 25_000, spreadPoints: 2,
+      volume24h: 25_000, spreadPoints: 2,
+    });
+    expect(digest.items[2]).toMatchObject({
+      eventUrl: "https://kalshi.com/markets/kalshi", priceBasis: "last trade price",
+      currentProbability: 60, change24h: 10, volume24h: 900, liquidity: 1_500,
     });
   });
 
   it("publishes an honest empty digest when coverage is insufficient", () => {
     expect(buildObservationDigest([market("quiet", { oneDayChange: 0 })], asOf)).toMatchObject({
-      examined: 1, eligible: 0, items: [],
+      version: 2, coverage: { polymarket: { examined: 1, eligible: 0 }, kalshi: { examined: 0, eligible: 0 } }, items: [],
     });
   });
 });
