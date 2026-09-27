@@ -368,13 +368,13 @@ export default function MarketTable({
             {/* Category filter */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Category</p>
-              <CategoryFilter active={category} onChange={(c) => { handleCategoryChange(c); setCogOpen(false); }} />
+              <CategoryFilter active={category} onChange={handleCategoryChange} />
             </div>
 
             {/* Source filter */}
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Source</p>
-              <SourceToggle value={source} onChange={(s) => { handleSourceChange(s); setCogOpen(false); }} />
+              <SourceToggle value={source} onChange={handleSourceChange} />
             </div>
 
             {/* Market size filter */}
@@ -404,7 +404,7 @@ export default function MarketTable({
               <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">View</p>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => { setViewMode("table"); setCogOpen(false); }}
+                  onClick={() => setViewMode("table")}
                   className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
                     viewMode === "table"
                       ? "border-primary bg-primary/10 text-primary"
@@ -414,7 +414,7 @@ export default function MarketTable({
                   <List className="w-3.5 h-3.5" /> List
                 </button>
                 <button
-                  onClick={() => { setViewMode("heatmap"); setCogOpen(false); }}
+                  onClick={() => setViewMode("heatmap")}
                   className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
                     viewMode === "heatmap"
                       ? "border-primary bg-primary/10 text-primary"
@@ -430,7 +430,7 @@ export default function MarketTable({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { mutate(); setCogOpen(false); }}
+              onClick={() => { void mutate(); }}
               disabled={isValidating}
               className="gap-1.5 h-8 text-xs w-full"
             >
