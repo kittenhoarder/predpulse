@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { formatDistanceToNow } from "date-fns";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
@@ -109,6 +110,20 @@ export default function MarketTable({
   const [uiPage, setUiPage] = useState(0);
   const [viewMode, setViewMode] = useState<"table" | "heatmap">("table");
   const [cogOpen, setCogOpen] = useState(false);
+
+  useEffect(() => {
+    if (!cogOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCogOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [cogOpen]);
   // Watchlist IDs read from localStorage; refreshed when user stars/unstars
   const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
   // Hide markets below per-source size thresholds (default on; persisted in localStorage)
@@ -325,13 +340,16 @@ export default function MarketTable({
       </div>
 
       {/* Mobile cog drawer — slide-up bottom sheet */}
-      {cogOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" onClick={() => setCogOpen(false)}>
+      {cogOpen && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end md:hidden" onClick={() => setCogOpen(false)}>
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
           {/* Sheet */}
           <div
-            className="absolute bottom-0 left-0 right-0 bg-background border-t border-border rounded-t-2xl p-5 space-y-5"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filters and view settings"
+            className="relative w-full max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border bg-background p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle + header */}
@@ -340,6 +358,7 @@ export default function MarketTable({
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters &amp; View</span>
               <button
                 onClick={() => setCogOpen(false)}
+                aria-label="Close filters"
                 className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
@@ -419,7 +438,7 @@ export default function MarketTable({
               {isValidating ? "Fetching…" : "Refresh data"}
             </Button>
           </div>
-        </div>
+        </div>, document.body
       )}
 
       {/* Market count + error — slim row between controls and table */}
