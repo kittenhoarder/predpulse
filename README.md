@@ -38,24 +38,28 @@ rows, but the dated snapshot describes the base observation.
 
 ## Evidence-backed observed moves (SPEC-02)
 
-The hourly publisher screens its full Polymarket ingest and attaches up to
-three observed moves to the existing snapshot. This adds no upstream requests
-or extra Blob writes. The homepage shows the venue-reported 24h probability
-change, current probability, 24h USD volume, USD liquidity, quoted spread,
-the observation timestamp, and a direct event link. The digest reports how
-many markets were examined and met the checks. No observation appears when
-none qualifies; delayed snapshots are explicitly labelled.
+The hourly publisher screens its full Polymarket and Kalshi ingest and attaches
+up to two observed moves per venue to the existing snapshot. This adds no
+upstream requests or extra Blob writes. Each card includes a venue link,
+timestamp, current YES price, change, 24h activity, liquidity or open interest,
+and quoted spread. Venue-specific coverage counts and an honest empty state
+make missing evidence visible; delayed snapshots are labelled.
 
-The initial checks require a 5–50 percentage point change, $10k in both
-24h volume and liquidity, a positive spread no wider than 5 points, a valid
-price and inferred prior price, and a scheduled close at least 24 hours away.
-One market per event appears. These are descriptive changes, not causal
-explanations, trade recommendations, or performance claims. Kalshi and
-Manifold are excluded from this digest pending consistent baselines and units;
-they remain available in the market table. Older snapshot generations without
-the digest continue to render normally.
+Both venues require a 5–50 percentage point move, a positive spread no wider
+than 5 points, a valid current and prior price, and a scheduled close at least
+24 hours away. Polymarket requires $10k of both 24h volume and liquidity;
+Kalshi requires 500 contracts traded in 24h and 500 contracts open interest.
+Kalshi cards compare current and previous *last-trade* prices, while the
+market table compares current and previous YES asks. Neither compares a last
+trade with an ask. Market table volume and open interest use contract units
+for Kalshi, rather than dollars. One market per event per source appears.
+These are descriptive changes, not causal explanations, trade recommendations,
+or performance claims. Manifold remains excluded because its API lacks a
+dependable 24h move. Older generations without this digest still render.
+
 The SPEC-02 branch pilot writes under `predpulse/previews/spec-02` so the
 hourly production publisher cannot overwrite the preview observation digest.
+The Kalshi follow-up branch uses `predpulse/previews/kalshi` for the same reason.
 The preview deployment selects this namespace via `VERCEL_GIT_COMMIT_REF`;
 Vercel's system environment variables must be exposed for branch previewing.
 
@@ -155,8 +159,8 @@ components/
 | `eventSlug` | Polymarket/Kalshi: slug; Manifold: full URL | Polymarket builds `polymarket.com/event/{slug}`; Manifold uses URL directly |
 | `currentPrice` | `outcomePrices[0] * 100` | 0–100% |
 | `oneDayChange`, `oneHourChange`, `oneWeekChange`, `oneMonthChange` | Polymarket/Kalshi | Percentage points; Manifold returns 0 (API v0 limitation) |
-| `volume24h`, `volume1wk`, `volume1mo` | All sources (USD) | Manifold has `volume24Hours` only |
-| `liquidity` | All sources (USD) | |
+| `volume24h`, `volume1wk`, `volume1mo` | All sources | Kalshi: contract counts; Polymarket: USD; Manifold: platform-native units (24h only) |
+| `liquidity` | All sources | Kalshi: open interest in contracts; Polymarket: USD liquidity |
 | `bestBid`, `bestAsk`, `spread` | Fractional 0–1 | Manifold: bid=ask=probability, spread=0 |
 | `outcomePrices` | Fractional 0–1 | `[yes, no]` |
 | `clobTokenId` | Polymarket only | Used for CLOB price history; empty for Kalshi/Manifold |

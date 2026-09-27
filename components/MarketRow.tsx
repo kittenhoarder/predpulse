@@ -7,7 +7,7 @@ import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
 import ExpandedPanel from "./ExpandedPanel";
 import { isWatchlisted, toggleWatchlist } from "@/lib/watchlist";
-import { formatCurrency, formatChange, marketTradeUrl } from "@/lib/format";
+import { formatCurrency, formatContracts, formatChange, marketTradeUrl } from "@/lib/format";
 
 export { formatCurrency, formatChange };
 
@@ -66,6 +66,7 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
 
   const isPositive = market.oneDayChange > 0;
   const isNeutral = market.oneDayChange === 0;
+  const outcomeLabel = market.source === "polymarket" ? market.outcomes[0]?.trim() : undefined;
   const tradeUrl = marketTradeUrl(market.source, market.eventSlug);
 
   function handleStar(e: React.MouseEvent) {
@@ -127,9 +128,12 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
           </div>
         </TableCell>
 
-        {/* Yes probability — uses live WebSocket price when available */}
+        {/* Kalshi shows the YES ask, which can be far from the last trade in a thin market. */}
         <TableCell className="text-right tabular-nums">
           <span
+            title={market.source === "kalshi"
+              ? `Kalshi YES ask. Bid ${(market.bestBid * 100).toFixed(1)}%, ask ${(market.bestAsk * 100).toFixed(1)}%.`
+              : outcomeLabel ? `${outcomeLabel} market price` : undefined}
             className={`text-sm font-semibold transition-colors duration-300 ${
               flash === "up"
                 ? "text-emerald-400"
@@ -140,11 +144,17 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
           >
             {(livePrice?.price ?? market.currentPrice).toFixed(1)}%
           </span>
+          {market.source === "kalshi" && <span className="block text-[10px] text-muted-foreground">YES ask</span>}
+          {outcomeLabel && !/^yes$/i.test(outcomeLabel) &&
+            <span className="block max-w-28 truncate text-[10px] text-muted-foreground" title={outcomeLabel}>{outcomeLabel}</span>}
         </TableCell>
 
         {/* 24h change */}
         <TableCell className="text-right tabular-nums">
           <Badge
+            title={market.source === "kalshi" && !market.kalshiAskChangeAvailable
+              ? "24h ask move withheld: no comparable quote, fewer than 500 contracts traded or open, or spread wider than 5 percentage points."
+              : undefined}
             variant="outline"
             className={`text-xs font-semibold rounded-full ${
               isNeutral
@@ -154,18 +164,24 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
                   : "text-red-500 border-red-500/30 bg-red-500/10"
             }`}
           >
-            {formatChange(market.oneDayChange)}
+            {market.source === "kalshi" && market.kalshiAskChangeAvailable !== true
+              ? "—"
+              : formatChange(market.oneDayChange)}
           </Badge>
         </TableCell>
 
         {/* 24h volume */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          {formatCurrency(market.volume24h)}
+          <span title={market.source === "kalshi" ? "Contracts traded in 24h" : "24h volume in USD"}>
+            {market.source === "kalshi" ? formatContracts(market.volume24h) : formatCurrency(market.volume24h)}
+          </span>
         </TableCell>
 
         {/* Liquidity */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          {formatCurrency(market.liquidity)}
+          <span title={market.source === "kalshi" ? "Open interest in contracts" : "Liquidity in USD"}>
+            {market.source === "kalshi" ? formatContracts(market.liquidity) : formatCurrency(market.liquidity)}
+          </span>
         </TableCell>
 
         {/* Star + detail link + trade link */}

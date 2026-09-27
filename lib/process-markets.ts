@@ -89,7 +89,7 @@ function processMarket(
 
   const { slugs, labels } = extractCategories(event, tagMap);
 
-  // First CLOB token ID is the "Yes" token — used to fetch price history
+  // First CLOB token corresponds to outcomes[0], which can be a named team.
   const clobTokenId = parseJsonArray<string>(market.clobTokenIds)[0] ?? "";
 
   const ob = clobTokenId ? obMap.get(clobTokenId) : undefined;

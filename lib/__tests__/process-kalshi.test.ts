@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { processKalshiMarkets, deriveCandleMetrics } from "../process-kalshi";
+import { sortMarkets } from "../get-markets";
 import type { KalshiMarket, KalshiCandle } from "../types";
 
 describe("deriveCandleMetrics", () => {
@@ -99,20 +100,58 @@ describe("processKalshiMarkets", () => {
     expect(processKalshiMarkets([noPrice])).toHaveLength(0);
   });
 
-  it("derives oneDayChange from previous_price_dollars when present", () => {
-    // last_price_dollars = 0.6000 (60%), previous_price_dollars = 0.5000 (50%) → +10pp
+  it("keeps the table change on the YES ask basis and stores the last-trade pair separately", () => {
     const market = {
       ...baseMarket,
       last_price_dollars: "0.6000",
+      yes_bid_dollars: "0.5900",
       yes_ask_dollars: "0.6100",
+      previous_yes_ask_dollars: "0.5500",
       previous_price_dollars: "0.5000",
     };
     const result = processKalshiMarkets([market]);
     expect(result).toHaveLength(1);
-    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+    expect(result[0].currentPrice).toBe(61);
+    expect(result[0].oneDayChange).toBe(6);
+    expect(result[0].kalshiAskChangeAvailable).toBe(true);
+    expect(result[0].kalshiTradeMove24h).toEqual({ currentPrice: 60, previousPrice: 50, change: 10 });
   });
 
-  it("falls back to candle-derived oneDayChange when previous_price_dollars is absent", () => {
+  it("withholds the exaggerated ask move from a thin market with a wide spread", () => {
+    const market = {
+      ...baseMarket,
+      yes_bid_dollars: "0.0200",
+      yes_ask_dollars: "0.9000",
+      previous_yes_ask_dollars: "0.1300",
+      last_price_dollars: "0.0500",
+      previous_price_dollars: "0.0800",
+      volume_24h_fp: "291",
+      open_interest_fp: "523",
+    };
+    const [processed] = processKalshiMarkets([market]);
+    expect(processed.currentPrice).toBe(90);
+    expect(processed.spread).toBeCloseTo(0.88);
+    expect(processed.kalshiAskChangeAvailable).toBe(false);
+    expect(processed.oneDayChange).toBe(0);
+    expect(processed.kalshiTradeMove24h?.change).toBe(-3);
+    expect(sortMarkets([processed, { ...processed, id: "qualified", source: "polymarket", oneDayChange: 5 }], "movers")
+      .map((m) => m.id)).toEqual(["qualified", market.ticker]);
+  });
+
+  it("withholds the ask move when volume or open interest is below the contract floor", () => {
+    for (const overrides of [
+      { volume_24h_fp: "499", open_interest_fp: "500" },
+      { volume_24h_fp: "500", open_interest_fp: "499" },
+    ]) {
+      const [processed] = processKalshiMarkets([{
+        ...baseMarket, previous_yes_ask_dollars: "0.4500", ...overrides,
+      }]);
+      expect(processed.kalshiAskChangeAvailable).toBe(false);
+      expect(processed.oneDayChange).toBe(0);
+    }
+  });
+
+  it("does not present daily candles or mismatched trade prices as a 24h ask change", () => {
     const candles: KalshiCandle[] = [
       { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.40, volume: 100, ts: 1 },
       { ticker: "KXTEST-YES", open: 0.4, high: 0.55, low: 0.4, close: 0.50, volume: 200, ts: 2 },
@@ -120,7 +159,8 @@ describe("processKalshiMarkets", () => {
     const candleMap = new Map([["KXTEST-YES", candles]]);
     const result = processKalshiMarkets([baseMarket], candleMap);
     expect(result).toHaveLength(1);
-    // candle-derived: (50 - 40) = 10pp
-    expect(result[0].oneDayChange).toBeCloseTo(10.0, 1);
+    expect(result[0].oneDayChange).toBe(0);
+    expect(result[0].kalshiAskChangeAvailable).toBe(false);
+    expect(result[0].kalshiTradeMove24h).toBeUndefined();
   });
 });

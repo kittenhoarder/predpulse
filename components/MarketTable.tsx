@@ -460,7 +460,7 @@ export default function MarketTable({
                 <TableHead className="text-xs text-right whitespace-nowrap">Probability</TableHead>
                 <TableHead className="text-xs text-right whitespace-nowrap">24h Change</TableHead>
                 <TableHead className="text-xs text-right whitespace-nowrap">24h Volume</TableHead>
-                <TableHead className="text-xs text-right">Liquidity</TableHead>
+                <TableHead className="text-xs text-right">Liquidity / OI</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>

@@ -9,7 +9,7 @@ export default function ObservedMoves({
   digest: ObservationDigest | null | undefined;
   status: "hourly" | "delayed" | "stale";
 }) {
-  if (!digest) return null;
+  if (!digest || digest.version !== 2) return null;
 
   return (
     <section aria-labelledby="observed-moves-title" className="my-5">
@@ -17,12 +17,13 @@ export default function ObservedMoves({
         <div>
           <h2 id="observed-moves-title" className="text-sm font-semibold tracking-tight">Observed moves</h2>
           <p className="text-xs text-muted-foreground">
-            Venue-reported 24h probability changes, captured {new Date(digest.asOf).toLocaleString()}.
+            Venue-reported outcome price changes, captured {new Date(digest.asOf).toLocaleString()}.
             {status !== "hourly" && " This observation is delayed; values may have changed."}
           </p>
         </div>
         <span className="text-[11px] text-muted-foreground">
-          {digest.eligible.toLocaleString()} met the checks · {digest.examined.toLocaleString()} Polymarket markets examined
+          P {digest.coverage.polymarket.eligible}/{digest.coverage.polymarket.examined.toLocaleString()} eligible
+          {" · "}K {digest.coverage.kalshi.eligible}/{digest.coverage.kalshi.examined.toLocaleString()} eligible
         </span>
       </div>
 
@@ -31,11 +32,11 @@ export default function ObservedMoves({
           No moves met the evidence checks in this snapshot.
         </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {digest.items.map((item) => (
-            <article key={item.marketId} className="flex flex-col rounded-xl border border-border bg-card p-4">
+            <article key={`${item.source}:${item.marketId}`} className="flex flex-col rounded-xl border border-border bg-card p-4">
               <div className="mb-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span>{item.category} · Polymarket</span>
+                <span>{item.category} · {item.source === "kalshi" ? "Kalshi" : "Polymarket"}</span>
                 <span>24h move</span>
               </div>
               <a href={item.eventUrl} target="_blank" rel="noopener noreferrer"
@@ -48,17 +49,21 @@ export default function ObservedMoves({
                   {item.change24h > 0 ? "+" : ""}{item.change24h.toFixed(1)} pp
                 </span>
               </div>
+              <span className="mt-0.5 text-[11px] text-muted-foreground">{item.outcomeLabel || "Outcome unspecified"} {item.priceBasis}</span>
               <p className="mt-3 border-t border-border pt-2 text-[11px] text-muted-foreground">
-                24h volume ${usd.format(item.volume24hUsd)} · Liquidity ${usd.format(item.liquidityUsd)} · Spread {item.spreadPoints.toFixed(1)} pp
+                24h volume {item.source === "kalshi" ? `${usd.format(item.volume24h)} contracts` : `$${usd.format(item.volume24h)}`}
+                {" · "}{item.source === "kalshi" ? "Open interest" : "Liquidity"} {item.source === "kalshi" ? `${usd.format(item.liquidity)} contracts` : `$${usd.format(item.liquidity)}`}
+                {" · "}Spread {item.spreadPoints.toFixed(1)} pp
               </p>
             </article>
           ))}
         </div>
       )}
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Screening: ≥5 pp move, ≥$10k volume and liquidity, ≤5 pp quoted spread, at least 24h until scheduled close.
-        One market per event. Venue figures are observations, not explanations or forecasts.
-        Kalshi and Manifold are excluded until their change and volume measures are comparable.
+        Screening: ≥5 pp move, ≤5 pp quoted spread, ≥24h until close, one market per event.
+        Polymarket requires ≥$10k 24h volume and liquidity; Kalshi requires ≥500 contracts traded in 24h and ≥500 contracts open interest.
+        Kalshi shows last trade versus the exchange&apos;s previous trade reference; its table price is the YES ask.
+        Figures are observations, not explanations or forecasts. Manifold lacks a dependable 24h move.
       </p>
     </section>
   );

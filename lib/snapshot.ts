@@ -6,10 +6,10 @@ import { computePulse } from "./pulse";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
-const PREFIX = process.env.GITHUB_REF_NAME === OBSERVATIONS_BRANCH ||
-  process.env.VERCEL_GIT_COMMIT_REF === OBSERVATIONS_BRANCH
-  ? "predpulse/previews/spec-02"
-  : "predpulse";
+const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
+const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
+const PREFIX = branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
+  branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
 const MANIFEST_PATH = `${PREFIX}/latest.json`;
 const MAX_BYTES = 250_000;
 const SOURCE_FLOOR = 0.5;
@@ -73,10 +73,12 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
       throw new Error("Invalid market in snapshot");
     }
   }
-  if (s.observations && (s.observations.asOf !== s.generatedAt ||
-      s.observations.source !== "polymarket" || !Array.isArray(s.observations.items) ||
-      s.observations.items.length > 3 ||
-      s.observations.items.some((item) => !item.eventUrl.startsWith("https://polymarket.com/event/") ||
+  if (s.observations?.version === 2 && (s.observations.asOf !== s.generatedAt ||
+      !s.observations.coverage?.polymarket || !s.observations.coverage?.kalshi ||
+      !Array.isArray(s.observations.items) || s.observations.items.length > 4 ||
+      s.observations.items.some((item) =>
+        !["https://polymarket.com/event/", "https://kalshi.com/markets/"].some((prefix) =>
+          item.eventUrl.startsWith(prefix)) ||
         !Number.isFinite(item.currentProbability) || !Number.isFinite(item.change24h)))) {
     throw new Error("Invalid observation digest");
   }
@@ -153,7 +155,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     },
     markets: selectSnapshotMarkets(sources),
     pulse: computePulse([...sources.polymarkets, ...sources.kalshiMarkets]),
-    observations: buildObservationDigest(sources.polymarkets, generatedAt),
+    observations: buildObservationDigest([...sources.polymarkets, ...sources.kalshiMarkets], generatedAt),
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
   const payload = JSON.stringify(snapshot);
