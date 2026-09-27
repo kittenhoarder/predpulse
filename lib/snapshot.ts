@@ -4,11 +4,14 @@ import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
 import { computePulse } from "./pulse";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
+import { buildEventMonitor, type EventMonitor } from "./event-monitor";
 
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
 const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
+const MONITOR_BRANCH = "feat/spec-03-event-monitor";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
+const PREFIX = branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
+  branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
   branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
 const MANIFEST_PATH = `${PREFIX}/latest.json`;
 const MAX_BYTES = 250_000;
@@ -21,6 +24,7 @@ export interface PublishedSnapshot {
   markets: ProcessedMarket[];
   pulse: PulseIndex[];
   observations?: ObservationDigest;
+  monitor?: EventMonitor;
 }
 
 interface Manifest {
@@ -32,7 +36,7 @@ interface Manifest {
 
 let lastGood: PublishedSnapshot | null = null;
 
-export function selectSnapshotMarkets(sources: AllSourcesResult): ProcessedMarket[] {
+export function selectSnapshotMarkets(sources: AllSourcesResult, monitorItems: EventMonitor["items"] = []): ProcessedMarket[] {
   const liquid = filterBySize([
     ...sources.polymarkets,
     ...sources.kalshiMarkets,
@@ -46,6 +50,9 @@ export function selectSnapshotMarkets(sources: AllSourcesResult): ProcessedMarke
     orderbookDepth: undefined,
     topHolders: undefined,
   });
+
+  const monitored = new Set(monitorItems.map((item) => `${item.source}:${item.marketId}`));
+  for (const m of liquid) if (monitored.has(`${m.source}:${m.id}`)) add(m);
 
   // A bounded, balanced research subset, with enough recent movers for discovery.
   for (const source of ["polymarket", "kalshi", "manifold"] as const) {
@@ -81,6 +88,12 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
           item.eventUrl.startsWith(prefix)) ||
         !Number.isFinite(item.currentProbability) || !Number.isFinite(item.change24h)))) {
     throw new Error("Invalid observation digest");
+  }
+  if (s.monitor && (s.monitor.version !== 1 || s.monitor.asOf !== s.generatedAt ||
+      !Number.isFinite(s.monitor.examined) || !Number.isFinite(s.monitor.eligible) ||
+      !Array.isArray(s.monitor.items) || s.monitor.items.length > 12 ||
+      s.monitor.items.some((item) => !s.markets.some((m) => m.source === item.source && m.id === item.marketId)))) {
+    throw new Error("Invalid event monitor");
   }
   return s;
 }
@@ -145,6 +158,8 @@ export async function loadPublishedSnapshot(): Promise<PublishedSnapshot | null>
 export async function publishSnapshot(sources: AllSourcesResult): Promise<PublishedSnapshot> {
   const previous = await loadPublishedSnapshot();
   const generatedAt = new Date().toISOString();
+  const coreMarkets = [...sources.polymarkets, ...sources.kalshiMarkets];
+  const monitor = buildEventMonitor(coreMarkets, generatedAt);
   const snapshot = validateSnapshot({
     version: 1,
     generatedAt,
@@ -153,9 +168,10 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
       kalshi: sources.kalshiMarkets.length,
       manifold: sources.manifoldMarkets.length,
     },
-    markets: selectSnapshotMarkets(sources),
-    pulse: computePulse([...sources.polymarkets, ...sources.kalshiMarkets]),
-    observations: buildObservationDigest([...sources.polymarkets, ...sources.kalshiMarkets], generatedAt),
+    markets: selectSnapshotMarkets(sources, monitor.items),
+    pulse: computePulse(coreMarkets),
+    observations: buildObservationDigest(coreMarkets, generatedAt),
+    monitor,
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
   const payload = JSON.stringify(snapshot);

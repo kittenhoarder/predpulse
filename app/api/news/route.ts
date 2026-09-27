@@ -86,7 +86,9 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       console.error(`[/api/news] Guardian ${res.status}`);
-      return NextResponse.json({ articles: [] });
+      return NextResponse.json({ articles: [], unavailable: true }, {
+        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+      });
     }
 
     const json = await res.json();
@@ -122,6 +124,8 @@ export async function GET(req: NextRequest) {
     );
   } catch (err) {
     console.error("[/api/news]", err);
-    return NextResponse.json({ articles: [] });
+    return NextResponse.json({ articles: [], unavailable: true }, {
+      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+    });
   }
 }

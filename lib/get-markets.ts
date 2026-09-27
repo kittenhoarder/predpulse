@@ -187,7 +187,7 @@ export function sortMarkets(
     case "watchlist": {
       const ids = new Set(watchlistIds ?? []);
       return markets
-        .filter((m) => ids.has(m.id))
+        .filter((m) => ids.has(`${m.source}:${m.id}`) || ids.has(m.id))
         .sort((a, b) => Math.abs(b.oneDayChange) - Math.abs(a.oneDayChange));
     }
     case "movers":

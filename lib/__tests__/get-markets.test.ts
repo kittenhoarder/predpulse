@@ -119,6 +119,12 @@ describe("sortMarkets", () => {
     expect(result.map((m) => m.id)).toEqual(["a", "c"]);
   });
 
+  it("distinguishes venue IDs in a namespaced watchlist", () => {
+    const same = [makeMarket({ id: "shared", source: "kalshi" }),
+      makeMarket({ id: "shared", source: "polymarket" })];
+    expect(sortMarkets(same, "watchlist", ["kalshi:shared"]).map((m) => m.source)).toEqual(["kalshi"]);
+  });
+
   it("does not mutate the original array", () => {
     const original = [...markets];
     sortMarkets(markets, "volume");

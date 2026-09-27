@@ -63,6 +63,32 @@ The Kalshi follow-up branch uses `predpulse/previews/kalshi` for the same reason
 The preview deployment selects this namespace via `VERCEL_GIT_COMMIT_REF`;
 Vercel's system environment variables must be exposed for branch previewing.
 
+## Focused event monitor (SPEC-03 pilot)
+
+The first screen now opens with a policy and economy monitor from the existing
+hourly snapshot. The publisher screens politics, economics and geopolitics
+markets with the SPEC-02 evidence rules and selects up to 12 large 24-hour
+moves, at most one outcome per event on each venue. Six appear initially;
+visitors can expand the list. The screen shows quoted basis, outcome, spread,
+venue-specific volume units, scheduled close, sample count and freshness.
+Deadline links cover selected markets closing within seven days. Each monitor
+item has a snapshot-backed detail page with rules excerpt and source link.
+
+Saved markets and last-visit prices are stored on the visitor's device; a
+comparison appears only when the earlier and current outcomes and quote bases
+match and the current snapshot is fresh. This is a screened **sample**, not a
+manual registry of events or verified cross-venue matches. Markets outside the
+selected snapshot retain their saved state but cannot show a comparison.
+
+The branch preview uses `predpulse/previews/spec-03`, leaving the production
+manifest untouched. The publisher derives the monitor from its existing source
+ingest and includes it in the same generation and manifest writes. The indices
+and newsroom remain on the homepage below the monitor; indices also remain at `/pulse`.
+The newsroom needs a working `GUARDIAN_API_KEY` in the Vercel Production
+environment; provider failures are visibly labelled and cached for five minutes.
+After merging the parent Kalshi PR and this PR, manually dispatch the publisher
+once on the default branch to populate the production monitor.
+
 **Prediction market intelligence dashboard.** Dated market snapshots, heatmap, sparklines, and trade activity across Polymarket, Kalshi, and Manifold.
 
 Live: [predpulse.xyz](https://predpulse.xyz)

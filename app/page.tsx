@@ -18,15 +18,7 @@ export default function HomePage() {
             name: "Predpulse",
             url: process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz",
             description:
-              "Real-time dashboard tracking prediction market movers across Polymarket, Kalshi & Manifold.",
-            potentialAction: {
-              "@type": "SearchAction",
-              target: {
-                "@type": "EntryPoint",
-                urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"}/?q={search_term_string}`,
-              },
-              "query-input": "required name=search_term_string",
-            },
+              "Hourly observations of selected prediction market changes across Polymarket, Kalshi and Manifold.",
           }),
         }}
       />

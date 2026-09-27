@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
 import ExpandedPanel from "./ExpandedPanel";
-import { isWatchlisted, toggleWatchlist } from "@/lib/watchlist";
+import { isWatchlisted, toggleWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
 import { formatCurrency, formatContracts, formatChange, marketTradeUrl } from "@/lib/format";
 
 export { formatCurrency, formatChange };
@@ -43,8 +43,15 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
 
   // Read from localStorage after mount (SSR safe)
   useEffect(() => {
-    setStarred(isWatchlisted(market.id));
-  }, [market.id]);
+    const refresh = () => setStarred(isWatchlisted(market.id, market.source));
+    refresh();
+    window.addEventListener(WATCHLIST_CHANGE, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(WATCHLIST_CHANGE, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [market.id, market.source]);
 
   // Trigger flash animation whenever live price direction changes
   useEffect(() => {
@@ -71,7 +78,7 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
 
   function handleStar(e: React.MouseEvent) {
     e.stopPropagation();
-    const nowStarred = toggleWatchlist(market.id);
+    const nowStarred = toggleWatchlist(market.id, market.source);
     setStarred(nowStarred);
     onWatchlistChange?.();
   }

@@ -10,13 +10,18 @@ export async function GET() {
     status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" },
   });
   const status = snapshotAgeStatus(snapshot.generatedAt);
+  const markets = await marketsFromSnapshot(snapshot, { sort: "movers", category: "all", offset: 0, limit: 50 });
+  const firstPage = new Set(markets.markets.map((m) => `${m.source}:${m.id}`));
+  const monitored = new Set(snapshot.monitor?.items.map((item) => `${item.source}:${item.marketId}`) ?? []);
   return NextResponse.json({
-    markets: await marketsFromSnapshot(snapshot, { sort: "movers", category: "all", offset: 0, limit: 50 }),
+    markets,
+    monitorMarkets: snapshot.markets.filter((m) => monitored.has(`${m.source}:${m.id}`) && !firstPage.has(`${m.source}:${m.id}`)),
     pulse: { indices: snapshot.pulse, computedAt: snapshot.generatedAt },
     generatedAt: snapshot.generatedAt,
     status,
     sourceCounts: snapshot.sourceCounts,
     observations: snapshot.observations ?? null,
+    monitor: snapshot.monitor ?? null,
   }, {
     headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" },
   });
