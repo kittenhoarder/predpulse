@@ -1,4 +1,5 @@
 import type { ProcessedMarket } from "./types";
+import { isReliableKalshiMove } from "./market-quality";
 
 type Source = "polymarket" | "kalshi";
 
@@ -6,6 +7,7 @@ export interface MarketObservation {
   marketId: string;
   source: Source;
   question: string;
+  outcomeLabel: string;
   eventUrl: string;
   category: string;
   currentProbability: number;
@@ -31,16 +33,18 @@ function candidate(m: ProcessedMarket, now: number): MarketObservation | null {
   const current = kalshi ? move?.currentPrice : m.currentPrice;
   const change = kalshi ? move?.change : m.oneDayChange;
   const previous = kalshi ? move?.previousPrice : current! - change!;
+  const outcomeLabel = kalshi ? "YES" : m.outcomes[0]?.trim();
   const end = Date.parse(m.endDate);
-  const minActivity = kalshi ? 500 : 10_000;
 
   if (!m.question?.trim() || /\(copy\)\s*$/i.test(m.question) ||
+      !outcomeLabel || (!kalshi && /\bvs?\.?\s/i.test(m.question) && /^(yes|no)$/i.test(outcomeLabel)) ||
       !Number.isFinite(current) || current! < 2 || current! > 98 ||
       !Number.isFinite(change) || Math.abs(change!) < 5 || Math.abs(change!) > 50 ||
       !Number.isFinite(previous) || previous! <= 0 || previous! >= 100 ||
-      !Number.isFinite(m.volume24h) || m.volume24h < minActivity ||
-      !Number.isFinite(m.liquidity) || m.liquidity < minActivity ||
-      !Number.isFinite(m.spread) || m.spread <= 0 || m.spread > 0.05 ||
+      (kalshi ? !isReliableKalshiMove(m.volume24h, m.liquidity, m.spread) :
+        !Number.isFinite(m.volume24h) || m.volume24h < 10_000 ||
+        !Number.isFinite(m.liquidity) || m.liquidity < 10_000 ||
+        !Number.isFinite(m.spread) || m.spread <= 0 || m.spread > 0.05) ||
       !Number.isFinite(end) || end <= now + 24 * 60 * 60_000) return null;
 
   const eventUrl = kalshi
@@ -49,7 +53,7 @@ function candidate(m: ProcessedMarket, now: number): MarketObservation | null {
   if (!eventUrl) return null;
 
   return {
-    marketId: m.id, source: m.source as Source, question: m.question, eventUrl,
+    marketId: m.id, source: m.source as Source, question: m.question, outcomeLabel, eventUrl,
     category: m.categories[0] || "Market", currentProbability: current!, change24h: change!,
     priceBasis: kalshi ? "last trade price" : "market price", volume24h: m.volume24h,
     liquidity: m.liquidity, spreadPoints: m.spread * 100,

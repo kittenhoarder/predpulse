@@ -133,10 +133,11 @@ export interface ProcessedMarket {
   // Human-readable labels for the same tags
   categories: string[];
   image: string;
-  // Yes outcome price as percentage 0–100
+  // Price of outcomes[0] as a percentage 0–100 (not always YES)
   currentPrice: number;
   // Price changes as percentage points (oneDayPriceChange * 100)
   oneDayChange: number;
+  // Whether the Kalshi ask move has comparable quotes and passes activity/spread gates.
   kalshiAskChangeAvailable?: boolean;
   // Kalshi only: comparable last-trade prices from the exchange's current and
   // previous reference, independent of the displayed YES ask quote.

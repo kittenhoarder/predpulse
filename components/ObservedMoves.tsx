@@ -17,7 +17,7 @@ export default function ObservedMoves({
         <div>
           <h2 id="observed-moves-title" className="text-sm font-semibold tracking-tight">Observed moves</h2>
           <p className="text-xs text-muted-foreground">
-            Venue-reported YES price changes, captured {new Date(digest.asOf).toLocaleString()}.
+            Venue-reported outcome price changes, captured {new Date(digest.asOf).toLocaleString()}.
             {status !== "hourly" && " This observation is delayed; values may have changed."}
           </p>
         </div>
@@ -49,7 +49,7 @@ export default function ObservedMoves({
                   {item.change24h > 0 ? "+" : ""}{item.change24h.toFixed(1)} pp
                 </span>
               </div>
-              <span className="mt-0.5 text-[11px] text-muted-foreground">YES {item.priceBasis}</span>
+              <span className="mt-0.5 text-[11px] text-muted-foreground">{item.outcomeLabel || "Outcome unspecified"} {item.priceBasis}</span>
               <p className="mt-3 border-t border-border pt-2 text-[11px] text-muted-foreground">
                 24h volume {item.source === "kalshi" ? `${usd.format(item.volume24h)} contracts` : `$${usd.format(item.volume24h)}`}
                 {" · "}{item.source === "kalshi" ? "Open interest" : "Liquidity"} {item.source === "kalshi" ? `${usd.format(item.liquidity)} contracts` : `$${usd.format(item.liquidity)}`}

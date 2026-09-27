@@ -2,6 +2,7 @@ import type { KalshiMarket, KalshiCandle, KalshiSeries, ProcessedMarket } from "
 import type { KalshiOrderbookDepth } from "./kalshi";
 import { computeDepthScore } from "./orderbook";
 import { inferPolarity } from "./polarity";
+import { isReliableKalshiMove } from "./market-quality";
 
 /**
  * Maps Kalshi event-level category strings (exact API values) to Pulse-compatible slugs.
@@ -177,10 +178,11 @@ function processKalshiMarket(
     deriveCandleMetrics(candles);
 
   // Keep the table's displayed YES ask and its change on the same quote basis.
-  // A missing previous quote cannot be represented as a measured 24h change.
+  // Withhold the move when the market is too thin or the current spread is wide.
   const previousAsk = fpToPercent(market.previous_yes_ask_dollars);
   const kalshiAskChangeAvailable = Boolean(market.previous_yes_ask_dollars && market.yes_ask_dollars &&
-    previousAsk > 0 && currentPrice > 0);
+    previousAsk > 0 && currentPrice > 0 &&
+    isReliableKalshiMove(volume24h, openInterest, spread));
   const oneDayChange = kalshiAskChangeAvailable
     ? Math.round((currentPrice - previousAsk) * 10) / 10 : 0;
 

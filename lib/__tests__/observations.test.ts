@@ -56,4 +56,17 @@ describe("auditable observations", () => {
       version: 2, coverage: { polymarket: { examined: 1, eligible: 0 }, kalshi: { examined: 0, eligible: 0 } }, items: [],
     });
   });
+
+  it("names the priced team for a head-to-head market and rejects an unidentifiable side", () => {
+    const matchup = "New York Mets vs. Washington Nationals";
+    const digest = buildObservationDigest([
+      market("mets", { question: matchup, outcomes: ["New York Mets", "Washington Nationals"],
+        outcomePrices: [0.065, 0.935], currentPrice: 6.5, oneDayChange: -44 }),
+      market("unknown-side", { question: "Texas Rangers vs. Minnesota Twins", outcomes: ["Yes", "No"] }),
+    ], asOf);
+
+    expect(digest.items).toHaveLength(1);
+    expect(digest.items[0]).toMatchObject({ question: matchup, outcomeLabel: "New York Mets",
+      currentProbability: 6.5, change24h: -44 });
+  });
 });
