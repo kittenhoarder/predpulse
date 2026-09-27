@@ -147,14 +147,14 @@ export default function PulseCard({ index, large = false, showDetails, onToggleD
             <div className="space-y-1.5">
               {(
                 [
-                  { key: "momentum",     label: "Momentum",     pct: "45%" },
-                  { key: "flow",         label: "Flow",         pct: "35%" },
-                  { key: "breadth",      label: "Breadth",      pct: "20%" },
-                  { key: "level",        label: "Certainty",    pct: "ctx" },
-                ] as { key: keyof typeof index.signals; label: string; pct: string }[]
+                  { key: "momentum",     label: "Momentum" },
+                  { key: "flow",         label: "Flow" },
+                  { key: "breadth",      label: "Breadth" },
+                  { key: "level",        label: "Certainty" },
+                ] as { key: keyof typeof index.signals; label: string }[]
               )
               .filter(({ key }) => index.signals[key] !== undefined)
-              .map(({ key, label, pct }) => {
+              .map(({ key, label }) => {
                 const val = index.signals[key] as number;
                 // Center-origin: signal bars grow right (bullish) or left (bearish) from midpoint
                 const isBullish = val >= 50;
@@ -178,7 +178,6 @@ export default function PulseCard({ index, large = false, showDetails, onToggleD
                       <div className="absolute left-1/2 top-0 h-full w-px bg-border/60 -translate-x-px" />
                     </div>
                     <span className="text-[10px] tabular-nums text-muted-foreground w-5 text-right shrink-0">{val}</span>
-                    <span className="text-[10px] text-muted-foreground/30 w-5 shrink-0">{pct}</span>
                   </div>
                 );
               })}

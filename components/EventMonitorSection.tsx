@@ -6,6 +6,7 @@ import { Star } from "lucide-react";
 import type { EventMonitor } from "@/lib/event-monitor";
 import type { ProcessedMarket } from "@/lib/types";
 import { getWatchlist, savedMarketKey, toggleWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
+import MetaNote from "./MetaNote";
 
 const LAST_SEEN_KEY = "predpulse:monitor:last-seen:v1";
 const topics = new Set(["economics", "politics", "geopolitics"]);
@@ -90,9 +91,12 @@ export default function EventMonitorSection({ monitor, markets, generatedAt, sta
     <section id="monitor" aria-labelledby="monitor-title" className="scroll-mt-16 py-4">
       {saved.size > 0 && (
         <div className="mb-5 rounded-xl border border-primary/25 bg-primary/5 p-4">
-          <div className="mb-2 flex items-baseline justify-between gap-2">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Your saved markets</h2>
-            <span className="text-[11px] text-muted-foreground">Compared with your last visit on this device</span>
+            <MetaNote kind="context" title="Your saved markets">
+              <p>Saved markets and the last quote you saw stay on this device. Changes compare the same outcome and price basis against your previous visit, when both snapshots are comparable.</p>
+              <p>Saved markets outside this selected snapshot remain saved, but cannot show a comparison here.</p>
+            </MetaNote>
           </div>
           {watched.length === 0 && <p className="text-xs text-muted-foreground">Saved markets are outside this selected snapshot. They remain saved.</p>}
           <div className="divide-y divide-border/70">
@@ -118,12 +122,18 @@ export default function EventMonitorSection({ monitor, markets, generatedAt, sta
         </div>
       )}
 
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">Policy &amp; economy</p>
           <h2 id="monitor-title" className="text-xl font-semibold tracking-tight">What changed</h2>
         </div>
-        <span className="text-[11px] text-muted-foreground">{monitor.eligible}/{monitor.examined} passed screening · {status === "hourly" ? "Hourly snapshot" : "Last-known snapshot"}</span>
+        <div className="flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
+          <span>{monitor.eligible} qualifying / {monitor.examined.toLocaleString()} screened</span>
+          <MetaNote kind="evidence" title="How moves qualify">
+            <p>Politics, economics and geopolitics markets are checked against price comparability, volume, liquidity or open interest, quoted spread and time until close. Only one outcome per source event is selected.</p>
+            <p>This is a sampled venue universe. Contracts across different venues are not treated as equivalent. Price changes do not explain causes or predict outcomes.</p>
+          </MetaNote>
+        </div>
       </div>
       {status === "stale" ? (
         <p className="rounded-xl border border-border p-4 text-sm text-muted-foreground">The snapshot is stale. Current movers are withheld until publishing resumes.</p>
@@ -160,7 +170,6 @@ export default function EventMonitorSection({ monitor, markets, generatedAt, sta
           {expanded ? "Show fewer moves" : `Show all ${monitor.items.length} moves`}
         </button>
       )}
-      <p className="mt-2 text-[11px] text-muted-foreground">Screened politics, economics and geopolitics contracts from the sampled venue universe. One outcome per source event; cross-venue matches have not been verified. Changes describe prices, not causes.</p>
 
       {closing.length > 0 && (
         <div className="mt-5">
