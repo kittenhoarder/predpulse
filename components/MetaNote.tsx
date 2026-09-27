@@ -35,7 +35,7 @@ export default function MetaNote({ kind, title, children }: {
     <div ref={root} className="relative inline-flex shrink-0">
       <button type="button" aria-label={title} aria-expanded={open} aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
         <Icon className="h-4 w-4" aria-hidden="true" />
       </button>
       {open && (
