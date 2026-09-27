@@ -65,8 +65,8 @@ Vercel's system environment variables must be exposed for branch previewing.
 
 ## Focused event monitor (SPEC-03 pilot)
 
-The first screen now opens with a policy and economy monitor from the existing
-hourly snapshot. The publisher screens politics, economics and geopolitics
+The homepage opens with the visual hero and newsroom, then a policy and economy
+monitor from the existing hourly snapshot. The publisher screens politics, economics and geopolitics
 markets with the SPEC-02 evidence rules and selects up to 12 large 24-hour
 moves, at most one outcome per event on each venue. Six appear initially;
 visitors can expand the list. The screen shows quoted basis, outcome, spread,
@@ -82,8 +82,10 @@ selected snapshot retain their saved state but cannot show a comparison.
 
 The branch preview uses `predpulse/previews/spec-03`, leaving the production
 manifest untouched. The publisher derives the monitor from its existing source
-ingest and includes it in the same generation and manifest writes. The indices
-and newsroom remain on the homepage below the monitor; indices also remain at `/pulse`.
+ingest and includes it in the same generation and manifest writes. The newsroom
+sits immediately below the hero, while the indices remain below the monitor and
+also at `/pulse`. Snapshot context, selection rules and index methodology appear
+behind touch-friendly icons beside the relevant visible figures.
 The newsroom needs a working `GUARDIAN_API_KEY` in the Vercel Production
 environment; provider failures are visibly labelled and cached for five minutes.
 After merging the parent Kalshi PR and this PR, manually dispatch the publisher

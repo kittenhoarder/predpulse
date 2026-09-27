@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { formatDistanceToNow, parse } from "date-fns";
 import type { GdeltArticle, MarketsApiResponse, ProcessedMarket } from "@/lib/types";
@@ -199,18 +199,12 @@ function SkeletonCard() {
 // NewsroomSection — main export
 // ---------------------------------------------------------------------------
 
-// Broad default query fired immediately on mount — covers the major prediction
-// market categories without waiting for the /api/markets response first.
-// Refined to a market-derived query once markets data is available.
+// Used only when the market snapshot is unavailable.
 const DEFAULT_NEWS_QUERY = "election economy bitcoin federal reserve trump";
 
 const MARKETS_SWR_KEY = "/api/markets?sort=movers&category=all&offset=0&limit=50";
 
 export default function NewsroomSection({ initialMarkets }: { initialMarkets?: MarketsApiResponse }) {
-  // Start with a default query so news fetch fires immediately on mount —
-  // no waterfall waiting for market data first.
-  const [newsQuery, setNewsQuery] = useState(DEFAULT_NEWS_QUERY);
-
   // Reuse the same market data already in-flight from MarketTable (SWR deduplicates)
   const { data: fallbackMarkets } = useSWR<MarketsApiResponse>(
     initialMarkets ? null : MARKETS_SWR_KEY,
@@ -219,14 +213,11 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
   );
   const marketsData = initialMarkets ?? fallbackMarkets;
 
-  // Once markets load, refine the query to reflect actual active categories
-  useEffect(() => {
-    const markets = marketsData?.markets;
-    if (!markets || markets.length === 0) return;
-    const refined = buildNewsroomQuery(markets);
-    if (refined && refined !== newsQuery) setNewsQuery(refined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketsData]);
+  // Use the bootstrap snapshot immediately, avoiding a second news request
+  // when the earlier default query would have been replaced after mount.
+  const newsQuery = useMemo(() => marketsData?.markets?.length
+    ? buildNewsroomQuery(marketsData.markets) || DEFAULT_NEWS_QUERY : DEFAULT_NEWS_QUERY,
+  [marketsData?.markets]);
 
   // Fetch news via the server-side proxy (no CORS issues, cached at edge 5min)
   const { data: newsData, isLoading: newsLoading } = useSWR<{ articles: NewsArticle[]; unavailable?: boolean }>(
@@ -241,11 +232,11 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
     [marketsData?.markets]
   );
 
-  // Match each article to the most relevant prediction markets — cap at 6 for 3-row grid
+  // Keep one visual row before the monitor; match each story to relevant markets.
   const stories: StoryWithMarkets[] = useMemo(
     () =>
       articles
-        .slice(0, 6)
+        .slice(0, 3)
         .map((article) => ({
           article,
           markets: matchArticlesToMarkets(article.title, allMarkets, 3),
@@ -268,14 +259,14 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
       </div>
 
       {newsData?.unavailable && isEmpty ? (
-        <p role="status" className="rounded-lg border border-border p-3 text-xs text-muted-foreground">News is temporarily unavailable from the provider.</p>
+        <p role="status" className="text-xs text-muted-foreground">News feed temporarily unavailable.</p>
       ) : showSkeleton ? (
-        /* Skeleton grid — visible immediately on mount */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
+        <>
+          <div className="sm:hidden flex gap-3 overflow-hidden -mx-4 px-4"><div className="w-[85vw] shrink-0"><SkeletonCard /></div></div>
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        </>
       ) : (
         <>
           {/* Mobile: horizontal snap-scroll strip */}

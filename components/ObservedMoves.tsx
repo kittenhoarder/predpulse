@@ -1,4 +1,5 @@
 import type { ObservationDigest } from "@/lib/observations";
+import MetaNote from "./MetaNote";
 
 const usd = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -13,18 +14,17 @@ export default function ObservedMoves({
 
   return (
     <section aria-labelledby="observed-moves-title" className="my-5">
-      <div className="mb-3 flex flex-wrap items-end justify-between gap-x-5 gap-y-1">
-        <div>
-          <h2 id="observed-moves-title" className="text-sm font-semibold tracking-tight">Observed moves</h2>
-          <p className="text-xs text-muted-foreground">
-            Venue-reported outcome price changes, captured {new Date(digest.asOf).toLocaleString()}.
-            {status !== "hourly" && " This observation is delayed; values may have changed."}
-          </p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
+        <h2 id="observed-moves-title" className="text-sm font-semibold tracking-tight">Observed moves</h2>
+        <div className="flex items-center gap-1 text-[11px] tabular-nums text-muted-foreground">
+          <span>P {digest.coverage.polymarket.eligible}/{digest.coverage.polymarket.examined.toLocaleString()}
+            {" · "}K {digest.coverage.kalshi.eligible}/{digest.coverage.kalshi.examined.toLocaleString()}</span>
+          <MetaNote kind="method" title="About observed moves">
+            <p>Venue-reported outcome price changes captured {new Date(digest.asOf).toLocaleString()}.{status !== "hourly" && " This snapshot is delayed."} Counts show eligible markets out of those examined on each venue.</p>
+            <p>Screening requires a 5–50 pp move, at most 5 pp quoted spread and at least 24 hours until close. Polymarket needs $10k in both 24h volume and liquidity; Kalshi needs 500 contracts traded and 500 open interest.</p>
+            <p>Kalshi compares last trade prices; its table quote is the YES ask. Manifold lacks a dependable 24h move. These are observations, not explanations or forecasts.</p>
+          </MetaNote>
         </div>
-        <span className="text-[11px] text-muted-foreground">
-          P {digest.coverage.polymarket.eligible}/{digest.coverage.polymarket.examined.toLocaleString()} eligible
-          {" · "}K {digest.coverage.kalshi.eligible}/{digest.coverage.kalshi.examined.toLocaleString()} eligible
-        </span>
       </div>
 
       {digest.items.length === 0 ? (
@@ -59,12 +59,6 @@ export default function ObservedMoves({
           ))}
         </div>
       )}
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        Screening: ≥5 pp move, ≤5 pp quoted spread, ≥24h until close, one market per event.
-        Polymarket requires ≥$10k 24h volume and liquidity; Kalshi requires ≥500 contracts traded in 24h and ≥500 contracts open interest.
-        Kalshi shows last trade versus the exchange&apos;s previous trade reference; its table price is the YES ask.
-        Figures are observations, not explanations or forecasts. Manifold lacks a dependable 24h move.
-      </p>
     </section>
   );
 }

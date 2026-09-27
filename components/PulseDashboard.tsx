@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { PulseApiResponse, PulseIndex } from "@/lib/types";
 import { fetchPulseApi } from "@/lib/pulse-client";
 import PulseCard from "./PulseCard";
+import MetaNote from "./MetaNote";
 
 export const PULSE_SWR_KEY = "/api/pulse";
 
@@ -36,6 +37,13 @@ export default function PulseDashboard({ initialData, large = false }: PulseDash
 
   return (
     <section className="pt-3 pb-3">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold tracking-tight">Pulse indices</h2>
+        <MetaNote kind="context" title="About Pulse indices">
+          <p>Category scores summarize 24-hour market direction from selected contracts. A score near 50 is neutral; it is not the probability of an event.</p>
+          <p>The score blends available market signals, including momentum, flow and breadth. Tap a card for its component scores and underlying markets.</p>
+        </MetaNote>
+      </div>
       {/* Skeleton loading */}
       {isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
