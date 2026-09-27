@@ -5,9 +5,9 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatContracts(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M ct`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K ct`;
-  return `${value.toFixed(0)} ct`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M contracts`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K contracts`;
+  return `${value.toFixed(0)} contracts`;
 }
 
 export function formatChange(change: number): string {
