@@ -5,8 +5,7 @@ import { filterBySize } from "./get-markets";
 import { computePulse } from "./pulse";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
-import { buildComparisonDigest } from "./venue-comparison-publisher";
-import { validateComparisonDigest, type ComparisonDigest } from "./venue-comparisons";
+import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from "./related-markets";
 
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
 const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
@@ -27,7 +26,7 @@ export interface PublishedSnapshot {
   pulse: PulseIndex[];
   observations?: ObservationDigest;
   monitor?: EventMonitor;
-  comparisons?: ComparisonDigest;
+  related?: RelatedDigest;
 }
 
 interface Manifest {
@@ -98,7 +97,7 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
       s.monitor.items.some((item) => !s.markets.some((m) => m.source === item.source && m.id === item.marketId)))) {
     throw new Error("Invalid event monitor");
   }
-  if (s.comparisons) validateComparisonDigest(s.comparisons, s.generatedAt);
+  if (s.related) validateRelatedDigest(s.related, s.generatedAt);
   return s;
 }
 
@@ -164,7 +163,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   const generatedAt = new Date().toISOString();
   const coreMarkets = [...sources.polymarkets, ...sources.kalshiMarkets];
   const monitor = buildEventMonitor(coreMarkets, generatedAt);
-  const comparisons = await buildComparisonDigest(generatedAt);
+  const related = buildRelatedDigest(coreMarkets, generatedAt);
   const snapshot = validateSnapshot({
     version: 1,
     generatedAt,
@@ -177,14 +176,14 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     pulse: computePulse(coreMarkets),
     observations: buildObservationDigest(coreMarkets, generatedAt),
     monitor,
-    comparisons: comparisons.items.length ? comparisons : undefined,
+    related: related.items.length ? related : undefined,
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
   let payload = JSON.stringify(snapshot);
-  // Comparisons are supplemental. Preserve core publication when close to the byte cap.
-  while (Buffer.byteLength(payload) > MAX_BYTES && snapshot.comparisons?.items.length) {
-    snapshot.comparisons.items.pop();
-    if (snapshot.comparisons.items.length === 0) delete snapshot.comparisons;
+  // Related markets are supplemental. Preserve core publication near the byte cap.
+  while (Buffer.byteLength(payload) > MAX_BYTES && snapshot.related?.items.length) {
+    snapshot.related.items.pop();
+    if (snapshot.related.items.length === 0) delete snapshot.related;
     payload = JSON.stringify(snapshot);
   }
   if (Buffer.byteLength(payload) > MAX_BYTES) throw new Error(`Snapshot exceeds ${MAX_BYTES} bytes`);

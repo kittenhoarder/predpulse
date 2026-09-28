@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPublishedSnapshot } from "@/lib/snapshot";
-import ComparisonCard from "@/components/ComparisonCard";
+import RelatedPairCard from "@/components/RelatedPairCard";
 import PulseLogo from "@/components/PulseLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ComparePage({ params }: { params: { pairId: string } }) {
   const snapshot = await loadPublishedSnapshot();
-  const item = snapshot?.comparisons?.items.find((pair) => pair.pairId === params.pairId);
+  const item = snapshot?.related?.items.find((pair) => pair.id === params.pairId);
   if (!item) notFound();
   return (
     <div className="min-h-screen bg-background">
@@ -18,7 +18,7 @@ export default async function ComparePage({ params }: { params: { pairId: string
       </div></header>
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <Link href="/#monitor" className="text-xs text-muted-foreground hover:text-foreground">← Back to monitor</Link>
-        <div className="mt-6"><ComparisonCard item={item} /></div>
+        <div className="mt-6"><RelatedPairCard pair={item} asOf={snapshot!.generatedAt} /></div>
       </main>
     </div>
   );

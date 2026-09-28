@@ -9,7 +9,6 @@
     "lint": "next lint",
     "test": "vitest run",
     "publish:snapshot": "node --import tsx scripts/publish-snapshot.ts",
-    "inspect:comparison": "node --import tsx scripts/inspect-comparison.ts",
     "test:watch": "vitest"
   },
   "dependencies": {

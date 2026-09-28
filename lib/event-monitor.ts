@@ -23,7 +23,7 @@ export function buildEventMonitor(markets: ProcessedMarket[], asOf: string): Eve
       a.source.localeCompare(b.source) || a.marketId.localeCompare(b.marketId));
   const seen = new Set<string>();
   const items = eligible.filter((item) => {
-    // Without reviewed venue mappings, group only within each source event.
+    // Monitor events remain scoped to one source. Related topics live separately.
     const key = `${item.source}:${item.eventUrl}`;
     if (seen.has(key)) return false;
     seen.add(key);
