@@ -57,9 +57,12 @@ export default function HomeDashboard() {
           )}
           {data?.monitor && <EventMonitorSection monitor={data.monitor} markets={monitorMarkets} generatedAt={data.generatedAt} status={data.status} />}
           {data?.related && data.status !== "stale" && data.related.items.length > 0 && (
-            <section aria-label="Related markets across venues" className="my-5 grid gap-3 md:grid-cols-2">
-              {data.related.items.slice(0, 2).map((item) =>
-                <RelatedPairCard key={item.id} pair={item} asOf={data.generatedAt} compact />)}
+            <section aria-labelledby="across-venues-title" className="my-5">
+              <h2 id="across-venues-title" className="mb-3 text-xl font-semibold tracking-tight">Across venues</h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {data.related.items.slice(0, 2).map((item) =>
+                  <RelatedPairCard key={item.id} pair={item} asOf={data.generatedAt} compact />)}
+              </div>
             </section>
           )}
           {data && data.status !== "stale" && <ObservedMoves digest={data.observations} status={data.status} />}

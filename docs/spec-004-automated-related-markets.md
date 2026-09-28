@@ -18,8 +18,8 @@ The PR branch runs the publisher once on push into `predpulse/previews/spec-04`,
 
 ## Visitor experience
 
-- Place at most two compact paired cards after the policy/economy monitor when the published digest contains results. Each card links to a mobile-friendly detail page showing both question texts, outcome labels, quoted prices with **distinct price-basis labels**, close times and links to full venue rules. A category-only card explicitly says there was no event match.
-- State near the title that the contracts were paired by topic terms and their settlement equivalence has **not** been verified. Explain the shared terms on the detail page. Never show a numerical cross-venue gap, a combined probability, or an execution/arb claim.
+- Name the section **Across venues**. Place at most two compact cards after the policy/economy monitor. Label each card **Similar titles** or **Category view**; a category-only card must not suggest an event match. Each links to a mobile-friendly detail page showing both question texts, outcomes, source-specific price bases, close times and original venue links.
+- Keep the material distinction “Separate contracts · settlement may differ” visible. Put how the automatic match was made, the actual shared terms and the reason this is not an arbitrage signal in the existing `MetaNote` method icon. Reuse `MetaNote` on both compact and detail cards; do not create another popover implementation. Keep snapshot time, contract terms and source links visible as data rather than burying them in a note. Never show a numerical cross-venue gap, a combined probability, or an execution/arb claim.
 - If no pair passes the screen, add no empty section to the homepage. An individual source event links to its related pair when that event is present in the bounded snapshot.
 - A Kalshi YES ask and Polymarket outcome market price are different observations. Present each with its own basis. A pair may have different wording, deadlines, resolution sources or outcome semantics. Readers must inspect the original venue terms before comparing them.
 
