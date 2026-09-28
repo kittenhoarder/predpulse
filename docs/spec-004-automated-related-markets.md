@@ -14,6 +14,8 @@ Let visitors discover Polymarket and Kalshi contracts on a similar topic, see wh
 3. Publish a versioned `related` digest alongside the existing snapshot. It contains both source titles, outcome labels, **source-specific price bases**, displayed values, scheduled closes, source links, a short available Polymarket rule excerpt and matching terms. Limit the digest to 14,000 bytes and remove supplemental pairs if the existing 250,000-byte snapshot limit would otherwise be exceeded. A failed or empty discovery leaves the rest of the publication intact.
 4. Continue using the existing GitHub schedule, Blob generation and manifest. Do not fetch venues from visitor traffic or add new Blob writes. The UI always identifies the dated snapshot; stale homepage content is withheld by the existing three-hour policy.
 
+The PR branch runs the publisher once on push into `predpulse/previews/spec-04`, which the Vercel branch preview reads. Production keeps its separate prefix. This provides real sampled markets for preview without publishing test data over the production manifest.
+
 ## Visitor experience
 
 - Place at most two compact paired cards after the policy/economy monitor when the published digest contains results. Each card links to a mobile-friendly detail page showing both question texts, outcome labels, quoted prices with **distinct price-basis labels**, close times and links to full venue rules. A category-only card explicitly says there was no event match.

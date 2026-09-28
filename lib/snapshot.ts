@@ -10,8 +10,10 @@ import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from ".
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
 const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
 const MONITOR_BRANCH = "feat/spec-03-event-monitor";
+const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
+const PREFIX = branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
+  branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
   branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
   branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
 const MANIFEST_PATH = `${PREFIX}/latest.json`;
