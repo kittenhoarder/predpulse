@@ -2,7 +2,8 @@ name: Publish market snapshot
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # GitHub can delay or drop scheduled events. Give each hour a second chance.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
   # Allows a same-repository pilot before this workflow reaches the default branch.
   push:
