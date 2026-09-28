@@ -8,6 +8,8 @@ import MarketTable from "./MarketTable";
 import ObservedMoves from "./ObservedMoves";
 import EventMonitorSection from "./EventMonitorSection";
 import MetaNote from "./MetaNote";
+import RelatedPairCard from "./RelatedPairCard";
+import type { RelatedDigest } from "@/lib/related-markets";
 import type { MarketsApiResponse, PulseApiResponse, ProcessedMarket } from "@/lib/types";
 import type { ObservationDigest } from "@/lib/observations";
 import type { EventMonitor } from "@/lib/event-monitor";
@@ -21,6 +23,7 @@ interface Bootstrap {
   observations?: ObservationDigest | null;
   monitor?: EventMonitor | null;
   monitorMarkets?: ProcessedMarket[];
+  related?: RelatedDigest | null;
 }
 
 async function fetchBootstrap(url: string): Promise<Bootstrap> {
@@ -53,6 +56,15 @@ export default function HomeDashboard() {
             </div>
           )}
           {data?.monitor && <EventMonitorSection monitor={data.monitor} markets={monitorMarkets} generatedAt={data.generatedAt} status={data.status} />}
+          {data?.related && data.status !== "stale" && data.related.items.length > 0 && (
+            <section aria-labelledby="across-venues-title" className="my-5">
+              <h2 id="across-venues-title" className="mb-3 text-xl font-semibold tracking-tight">Across venues</h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {data.related.items.slice(0, 2).map((item) =>
+                  <RelatedPairCard key={item.id} pair={item} asOf={data.generatedAt} compact />)}
+              </div>
+            </section>
+          )}
           {data && data.status !== "stale" && <ObservedMoves digest={data.observations} status={data.status} />}
           <PulseDashboard initialData={data?.pulse} />
           <div className="mb-1">

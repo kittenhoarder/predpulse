@@ -12,6 +12,7 @@ on:
       - feat/spec-02-trustworthy-observations
       - feat/spec-02-kalshi-observations
       - feat/spec-03-event-monitor
+      - feat/spec-004-venue-comparisons
 
 permissions:
   contents: read

@@ -5,12 +5,15 @@ import { filterBySize } from "./get-markets";
 import { computePulse } from "./pulse";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
+import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from "./related-markets";
 
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
 const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
 const MONITOR_BRANCH = "feat/spec-03-event-monitor";
+const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
+const PREFIX = branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
+  branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
   branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
   branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
 const MANIFEST_PATH = `${PREFIX}/latest.json`;
@@ -25,6 +28,7 @@ export interface PublishedSnapshot {
   pulse: PulseIndex[];
   observations?: ObservationDigest;
   monitor?: EventMonitor;
+  related?: RelatedDigest;
 }
 
 interface Manifest {
@@ -95,6 +99,7 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
       s.monitor.items.some((item) => !s.markets.some((m) => m.source === item.source && m.id === item.marketId)))) {
     throw new Error("Invalid event monitor");
   }
+  if (s.related) validateRelatedDigest(s.related, s.generatedAt);
   return s;
 }
 
@@ -160,6 +165,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   const generatedAt = new Date().toISOString();
   const coreMarkets = [...sources.polymarkets, ...sources.kalshiMarkets];
   const monitor = buildEventMonitor(coreMarkets, generatedAt);
+  const related = buildRelatedDigest(coreMarkets, generatedAt);
   const snapshot = validateSnapshot({
     version: 1,
     generatedAt,
@@ -172,9 +178,16 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     pulse: computePulse(coreMarkets),
     observations: buildObservationDigest(coreMarkets, generatedAt),
     monitor,
+    related: related.items.length ? related : undefined,
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
-  const payload = JSON.stringify(snapshot);
+  let payload = JSON.stringify(snapshot);
+  // Related markets are supplemental. Preserve core publication near the byte cap.
+  while (Buffer.byteLength(payload) > MAX_BYTES && snapshot.related?.items.length) {
+    snapshot.related.items.pop();
+    if (snapshot.related.items.length === 0) delete snapshot.related;
+    payload = JSON.stringify(snapshot);
+  }
   if (Buffer.byteLength(payload) > MAX_BYTES) throw new Error(`Snapshot exceeds ${MAX_BYTES} bytes`);
 
   // The generation is immutable; the short-lived manifest is the only mutable pointer.
