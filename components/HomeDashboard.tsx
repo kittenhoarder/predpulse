@@ -8,6 +8,9 @@ import MarketTable from "./MarketTable";
 import ObservedMoves from "./ObservedMoves";
 import EventMonitorSection from "./EventMonitorSection";
 import MetaNote from "./MetaNote";
+import ComparisonCard from "./ComparisonCard";
+import type { ComparisonDigest } from "@/lib/venue-comparisons";
+import { isCurrentComparison } from "@/lib/comparison-display";
 import type { MarketsApiResponse, PulseApiResponse, ProcessedMarket } from "@/lib/types";
 import type { ObservationDigest } from "@/lib/observations";
 import type { EventMonitor } from "@/lib/event-monitor";
@@ -21,6 +24,7 @@ interface Bootstrap {
   observations?: ObservationDigest | null;
   monitor?: EventMonitor | null;
   monitorMarkets?: ProcessedMarket[];
+  comparisons?: ComparisonDigest | null;
 }
 
 async function fetchBootstrap(url: string): Promise<Bootstrap> {
@@ -53,6 +57,12 @@ export default function HomeDashboard() {
             </div>
           )}
           {data?.monitor && <EventMonitorSection monitor={data.monitor} markets={monitorMarkets} generatedAt={data.generatedAt} status={data.status} />}
+          {data?.comparisons && data.status !== "stale" && data.comparisons.items.some((item) => isCurrentComparison(item)) && (
+            <section aria-label="Reviewed venue comparisons" className="my-5 grid gap-3 md:grid-cols-2">
+              {data.comparisons.items.filter((item) => isCurrentComparison(item)).slice(0, 2).map((item) =>
+                <ComparisonCard key={item.pairId} item={item} compact />)}
+            </section>
+          )}
           {data && data.status !== "stale" && <ObservedMoves digest={data.observations} status={data.status} />}
           <PulseDashboard initialData={data?.pulse} />
           <div className="mb-1">

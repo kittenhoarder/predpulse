@@ -22,6 +22,7 @@ export default async function EventPage({ params }: { params: { source: string; 
   const venueUrl = marketTradeUrl(market.source, market.eventSlug);
   const basis = observation?.priceBasis ?? (market.source === "kalshi" ? "YES ask" : "market price");
   const current = observation?.currentProbability ?? market.currentPrice;
+  const pair = snapshot.comparisons?.items.find((item) => item.venues.some((side) => side.source === market.source && side.marketId === market.id));
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,6 +40,7 @@ export default async function EventPage({ params }: { params: { source: string; 
           <span>{status === "hourly" ? "Hourly snapshot" : "Last-known snapshot"} from {new Date(snapshot.generatedAt).toLocaleString()}</span>
         </div>
         <h1 className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">{market.question}</h1>
+        {pair && <Link href={`/compare/${pair.pairId}`} className="mt-4 inline-block rounded-lg border border-primary/40 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5">View reviewed venue comparison →</Link>}
         <div className="mt-6 grid gap-4 rounded-xl border border-border bg-card p-5 sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">{observation?.outcomeLabel ?? market.outcomes[0] ?? "Outcome"} · {basis}</p>

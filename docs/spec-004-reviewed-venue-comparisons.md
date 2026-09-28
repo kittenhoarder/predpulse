@@ -116,3 +116,11 @@ A future matcher could suggest candidates after an adjudicated hard-negative set
 - [Polymarket bid/ask and midpoint definitions](https://docs.polymarket.com/trading/orderbook)
 
 The time, sample, byte, and UX limits above are Predpulse product decisions; venue documentation does not guarantee that two apparent markets settle identically.
+
+## Implementation and reviewer handoff
+
+The initial registry is deliberately empty. There is no independently verified live equivalent pair yet, so publishing a cross-venue number now would break the release gate above. The publisher, snapshot contract, details page, and tests are implemented on this PR. Homepage cards appear only after a reviewed pair is entered and its current rules and quotes pass every gate. Until then, the existing monitor remains unchanged instead of adding an empty section. This feature does not currently add a visible number to production. Related candidate pairs remain a manual review backlog, not published comparison pages in this first implementation.
+
+To onboard a pair, run `npm run inspect:comparison -- <polymarket-market-id> <kalshi-ticker>` from a networked development environment. Read **both full venue contracts and linked resolution terms**; the script prints the fields used for fingerprints and outcome IDs but cannot decide equivalence. Create a `data/venue-comparisons.json` entry with `pairId`, `familyId`, `mappingRevision`, exact proposition, concise rationale, two distinct reviewer identifiers, review time, the 12 required `ruleComparison` field pairs, and `sides` in Polymarket-then-Kalshi order. Each side requires exact market and outcome IDs, displayed outcome label, orientation (`as-is` or `complement`), inspected `rulesHash`, and original market URL. The validation tests can be adapted using `lib/__tests__/venue-comparisons.test.ts` as an example. A second person must check the full comparison and approve the registry pull request.
+
+The publisher currently checks only directly available venue market fields; a settlement condition in an external rulebook or linked document must be verified by reviewers. If that linked document can change independently of market metadata, add its version or digest to the reviewed fingerprint before approving the pair. Prefer leaving the registry empty to publishing an unverifiable match.
