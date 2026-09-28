@@ -7,11 +7,11 @@ export default function HeroSection() {
         <div className="relative z-10 max-w-xl">
           <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">Prediction markets, in perspective</p>
           <h1 id="hero-title" className="max-w-[13ch] text-[clamp(2.5rem,5vw,5rem)] font-semibold leading-[1.06] tracking-[-0.055em]">See where the odds are moving.</h1>
-          <p className="mt-7 max-w-md text-sm leading-relaxed text-muted-foreground sm:mt-5 sm:text-base">Follow changing expectations across prediction markets, with the context to make sense of the move.</p>
         </div>
-        <div className="pointer-events-none relative mt-10 h-52 w-full shrink-0 sm:mt-8 sm:h-48 lg:absolute lg:inset-y-0 lg:right-0 lg:mt-0 lg:h-full lg:w-[68%]" aria-hidden="true">
+        <div className="pointer-events-none relative mt-8 h-52 w-full shrink-0 sm:h-48 lg:absolute lg:inset-y-0 lg:right-0 lg:mt-0 lg:h-full lg:w-[68%]" aria-hidden="true">
           <ProbabilityLandscape />
         </div>
+        <p className="relative z-10 mt-7 max-w-md text-sm leading-relaxed text-muted-foreground sm:mt-6 sm:text-base lg:mt-5">Follow changing expectations across prediction markets, with the context to make sense of the move.</p>
       </div>
     </section>
   );
