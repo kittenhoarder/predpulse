@@ -1,5 +1,18 @@
 # Predpulse
 
+## Automated event outlooks (SPEC-005)
+
+The homepage automatically selects up to three upcoming events across central banks,
+elections, economic releases and policy/geopolitics from the existing Polymarket
+sample. It shows raw YES book midpoints with contract questions and provenance.
+Unverified candidate sets and overlapping deadlines are never normalized. The
+supported Fed meeting adapter offers opt-in normalization only after validating its
+complete five-bucket partition. No extra venue requests, polling or Blob writes.
+
+See [SPEC-005](docs/spec-005-event-outlooks.md) for selection and interpretation.
+The feature publishes to an isolated Blob prefix on its PR branch. After merging,
+dispatch the publisher on `main` once to populate it in production.
+
 ## Hourly snapshot delivery (SPEC-01)
 
 The homepage requests `/api/bootstrap` once, then displays the latest saved market

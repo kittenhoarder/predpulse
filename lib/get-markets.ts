@@ -3,7 +3,7 @@ import { buildTagMap, processEvents, parseJsonArray } from "./process-markets";
 import { fetchAllKalshiMarkets, fetchKalshiOrderbooks } from "./kalshi";
 import { processKalshiMarkets } from "./process-kalshi";
 import { fetchManifoldMarkets } from "./manifold";
-import type { ProcessedMarket, SortMode, MarketsApiResponse } from "./types";
+import type { GammaEvent, ProcessedMarket, SortMode, MarketsApiResponse } from "./types";
 
 const MARKETS_DOUBLE_PAGE_ENABLED =
   process.env.MARKETS_DOUBLE_PAGE_ENABLED !== "0" &&
@@ -349,9 +349,10 @@ const SMART_MONEY_ENABLED = process.env.ENABLE_SMART_MONEY === "1";
 // Per-source fetchers (with cache)
 // ---------------------------------------------------------------------------
 
-async function fetchPolymarkets(fresh = false): Promise<ProcessedMarket[]> {
+async function fetchPolymarkets(fresh = false, onEvents?: (events: GammaEvent[]) => void): Promise<ProcessedMarket[]> {
   return fetchWithSWR("polymarket", async () => {
     const [events, tags] = await Promise.all([fetchAllActiveEvents(), fetchTags()]);
+    onEvents?.(events);
     const tagMap = buildTagMap(tags);
 
     const tokenIds: string[] = [];
@@ -433,6 +434,8 @@ export interface AllSourcesResult {
   polymarkets: ProcessedMarket[];
   kalshiMarkets: ProcessedMarket[];
   manifoldMarkets: ProcessedMarket[];
+  /** Raw event families are retained only during fresh publisher acquisition. */
+  outlookEvents?: GammaEvent[];
 }
 
 /**
@@ -443,8 +446,11 @@ export interface AllSourcesResult {
 export async function fetchAllSources(options: { fresh?: boolean; source?: GetMarketsOptions["source"] } = {}): Promise<AllSourcesResult> {
   const t0 = Date.now();
   const include = (source: ProcessedMarket["source"]) => !options.source || options.source === "all" || options.source === source;
+  let outlookEvents: GammaEvent[] | undefined;
   const [initialPolymarkets, initialKalshiMarkets, manifoldMarkets] = await Promise.all([
-    include("polymarket") ? fetchPolymarkets(options.fresh) : Promise.resolve([]),
+    include("polymarket") ? fetchPolymarkets(options.fresh, options.fresh ? (events) => {
+      outlookEvents = events;
+    } : undefined) : Promise.resolve([]),
     include("kalshi") ? fetchKalshi(options.fresh) : Promise.resolve([]),
     include("manifold") ? fetchManifold(options.fresh) : Promise.resolve([]),
   ]);
@@ -456,7 +462,7 @@ export async function fetchAllSources(options: { fresh?: boolean; source?: GetMa
     `[get-markets] source counts poly=${polymarkets.length} kalshi=${kalshiMarkets.length} manifold=${manifoldMarkets.length} totalMs=${dt}`,
   );
 
-  return { polymarkets, kalshiMarkets, manifoldMarkets };
+  return { polymarkets, kalshiMarkets, manifoldMarkets, ...(outlookEvents ? { outlookEvents } : {}) };
 }
 
 /**

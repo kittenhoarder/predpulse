@@ -26,6 +26,10 @@ async function main(): Promise<void> {
     generatedAt: snapshot.generatedAt,
     selectedMarkets: snapshot.markets.length,
     sourceCounts: snapshot.sourceCounts,
+    eventOutlooks: snapshot.eventOutlooks?.items.map((item) => ({
+      title: item.title, topic: item.topic, displayedContracts: item.contracts.length,
+      verifiedPartition: item.decision?.coherent ?? false,
+    })) ?? null,
   });
 }
 

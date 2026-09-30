@@ -6,13 +6,17 @@ import { computePulse } from "./pulse";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
 import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from "./related-markets";
+import { validateDecisionDistribution, type DecisionDistribution } from "./decision-distribution";
+import { buildEventOutlooks, validateEventOutlooks, type EventOutlooks } from "./event-outlooks";
 
 const OBSERVATIONS_BRANCH = "feat/spec-02-trustworthy-observations";
 const KALSHI_BRANCH = "feat/spec-02-kalshi-observations";
 const MONITOR_BRANCH = "feat/spec-03-event-monitor";
 const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
+const DECISION_BRANCH = "feat/spec-005-event-distribution";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
+const PREFIX = branch === DECISION_BRANCH ? "predpulse/previews/spec-05" :
+  branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
   branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
   branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
   branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
@@ -29,6 +33,8 @@ export interface PublishedSnapshot {
   observations?: ObservationDigest;
   monitor?: EventMonitor;
   related?: RelatedDigest;
+  decisionDistribution?: DecisionDistribution | null; // Read compatibility with earlier spec-005 previews.
+  eventOutlooks?: EventOutlooks | null;
 }
 
 interface Manifest {
@@ -100,6 +106,8 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
     throw new Error("Invalid event monitor");
   }
   if (s.related) validateRelatedDigest(s.related, s.generatedAt);
+  if (s.decisionDistribution) validateDecisionDistribution(s.decisionDistribution, s.generatedAt);
+  if (s.eventOutlooks) validateEventOutlooks(s.eventOutlooks, s.generatedAt);
   return s;
 }
 
@@ -166,6 +174,9 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   const coreMarkets = [...sources.polymarkets, ...sources.kalshiMarkets];
   const monitor = buildEventMonitor(coreMarkets, generatedAt);
   const related = buildRelatedDigest(coreMarkets, generatedAt);
+  let eventOutlooks: EventOutlooks | null = null;
+  try { eventOutlooks = buildEventOutlooks(sources.outlookEvents ?? [], generatedAt); }
+  catch (error) { console.warn("[snapshot] event outlooks withheld", error); }
   const snapshot = validateSnapshot({
     version: 1,
     generatedAt,
@@ -179,6 +190,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     observations: buildObservationDigest(coreMarkets, generatedAt),
     monitor,
     related: related.items.length ? related : undefined,
+    eventOutlooks,
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
   let payload = JSON.stringify(snapshot);
@@ -186,6 +198,10 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   while (Buffer.byteLength(payload) > MAX_BYTES && snapshot.related?.items.length) {
     snapshot.related.items.pop();
     if (snapshot.related.items.length === 0) delete snapshot.related;
+    payload = JSON.stringify(snapshot);
+  }
+  if (Buffer.byteLength(payload) > MAX_BYTES && snapshot.eventOutlooks) {
+    snapshot.eventOutlooks = null;
     payload = JSON.stringify(snapshot);
   }
   if (Buffer.byteLength(payload) > MAX_BYTES) throw new Error(`Snapshot exceeds ${MAX_BYTES} bytes`);

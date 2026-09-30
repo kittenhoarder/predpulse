@@ -13,6 +13,9 @@ import type { RelatedDigest } from "@/lib/related-markets";
 import type { MarketsApiResponse, PulseApiResponse, ProcessedMarket } from "@/lib/types";
 import type { ObservationDigest } from "@/lib/observations";
 import type { EventMonitor } from "@/lib/event-monitor";
+import type { DecisionDistribution } from "@/lib/decision-distribution";
+import EventOutlooksSection from "./EventOutlooksSection";
+import type { EventOutlooks } from "@/lib/event-outlooks";
 
 interface Bootstrap {
   markets: MarketsApiResponse;
@@ -24,6 +27,8 @@ interface Bootstrap {
   monitor?: EventMonitor | null;
   monitorMarkets?: ProcessedMarket[];
   related?: RelatedDigest | null;
+  decisionDistribution?: DecisionDistribution | null;
+  eventOutlooks?: EventOutlooks | null;
 }
 
 async function fetchBootstrap(url: string): Promise<Bootstrap> {
@@ -55,6 +60,7 @@ export default function HomeDashboard() {
               </MetaNote>
             </div>
           )}
+          {data && <EventOutlooksSection key={data.generatedAt} outlooks={data.eventOutlooks ?? null} legacyDecision={data.decisionDistribution ?? null} status={data.status} />}
           {data?.monitor && <EventMonitorSection monitor={data.monitor} markets={monitorMarkets} generatedAt={data.generatedAt} status={data.status} />}
           {data?.related && data.status !== "stale" && data.related.items.length > 0 && (
             <section aria-labelledby="across-venues-title" className="my-5">
