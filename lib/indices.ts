@@ -224,15 +224,15 @@ function hourlyHistory(rows: StoredIndexSnapshot[], nowIso: string, score: numbe
     .slice(-48);
 }
 
-function delta24h(rows: StoredIndexSnapshot[], nowIso: string, currentScore: number): number {
+export function delta24h(rows: StoredIndexSnapshot[], nowIso: string, currentScore: number): number | null {
   const points = rows
     .map((r) => ({ t: Date.parse(r.timestamp), score: r.score }))
     .filter((r) => Number.isFinite(r.t));
 
   points.push({ t: Date.parse(nowIso), score: currentScore });
-  if (points.length < 2) return 0;
+  if (points.length < 2) return null;
 
-  const target = Date.now() - 24 * 60 * 60 * 1000;
+  const target = Date.parse(nowIso) - 24 * 60 * 60 * 1000;
   let closest = points[0];
   let minDist = Math.abs(points[0].t - target);
   for (const p of points) {
@@ -243,6 +243,7 @@ function delta24h(rows: StoredIndexSnapshot[], nowIso: string, currentScore: num
     }
   }
 
+  if (minDist > 45 * 60_000) return null;
   return Math.round((currentScore - closest.score) * 10) / 10;
 }
 

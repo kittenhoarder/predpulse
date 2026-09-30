@@ -1,5 +1,24 @@
 # Predpulse
 
+## Durable evidence and history (SPEC-006)
+
+Open **Evidence & history** beneath Event outlooks, or visit `/research`. Select a
+saved generation to inspect exact contract observations and download its JSON.
+Capture runs in the scheduled publisher and survives application restarts.
+The pilot automatically tracks up to 16 Polymarket YES contracts, one per event
+family, retaining missing and settled contracts. The historical index covers up
+to 30 days/750 generations. No historical evidence is backfilled or invented.
+
+24-hour changes require saved comparable observations within ±45 minutes.
+Unavailable forecast metrics are null with explicit sample size. Automatic venue
+settlement evidence is retained, but forecasting scores remain withheld until a
+supported adapter verifies public result time. Category scores are descriptive.
+Public outcome writes are disabled. See [SPEC-006](docs/spec-006-durable-evidence.md).
+
+Publication still makes two Blob writes. History adds bounded metadata, a baseline
+read, and up to eight five-second venue follow-ups in GitHub Actions. Viewer paths
+only read saved data. Actual storage/transfer grows; this is not a zero-cost claim.
+
 ## Automated event outlooks (SPEC-005)
 
 The homepage automatically selects up to three upcoming events across central banks,
@@ -275,30 +294,21 @@ Returns `IndicesApiResponse`: `{ indices, family, horizon, sourceScope, computed
 
 ### `GET /api/indices/backtest`
 
-Returns directional forecast-quality metrics from stored snapshots joined to ingested resolved outcomes:
-`{ metrics: { brier, logLoss, calibrationSlope, directionalAuc24h, sampleSize }, joinedOutcomes, totalOutcomes, coveragePct }`.
+Returns the published exact-contract research coverage and evaluation readiness.
+Forecast Brier/log loss are null until a qualified 24-hour lead observation,
+verified public result time and chronological holdout exist. Category scores
+never enter this evaluation. Accuracy promotion remains disabled.
 
 ### `POST /api/indices/outcomes`
 
-Ingests resolved outcomes for backtesting joins.
+Retired. Returns HTTP 410 and performs no writes. The scheduled publisher obtains
+and versions settlement evidence directly from the venue.
 
-Request body:
+### `GET /api/research?at=<ISO generation time>`
 
-```json
-{
-  "rows": [
-    {
-      "marketId": "ABC-123",
-      "source": "kalshi",
-      "category": "economics",
-      "polarity": 1,
-      "outcomeYes": 1,
-      "resolvedAt": "2026-03-01T00:00:00.000Z",
-      "note": "optional"
-    }
-  ]
-}
-```
+Downloads captured evidence and coverage as JSON. Omit `at` for latest. Historical
+lookup requires a saved generation within 45 minutes and reports its actual time.
+Missing generations return 404. `/research` provides the browsing interface.
 
 ### `GET /api/og`
 

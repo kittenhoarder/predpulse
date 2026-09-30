@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
+import { loadPublishedSnapshot } from "@/lib/snapshot";
 import { computeDirectionalBacktest } from "@/lib/backtest";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const result = computeDirectionalBacktest();
+    const result = computeDirectionalBacktest((await loadPublishedSnapshot())?.research ?? null);
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control": "no-store",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
       },
     });
   } catch (err) {

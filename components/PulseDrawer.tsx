@@ -75,8 +75,8 @@ export default function PulseDrawer({ index, onClose }: PulseDrawerProps) {
 
   const colors = BAND_COLORS[displayIndex.band];
   const sparkData = displayIndex.history.map((s) => ({ v: s.score }));
-  const hasDelta = displayIndex.delta24h !== 0;
-  const deltaPositive = displayIndex.delta24h > 0;
+  const hasDelta = displayIndex.delta24h !== null && displayIndex.delta24h !== 0;
+  const deltaPositive = (displayIndex.delta24h ?? 0) > 0;
 
   return createPortal(
     <div className="fixed inset-0 z-50">
@@ -113,7 +113,7 @@ export default function PulseDrawer({ index, onClose }: PulseDrawerProps) {
                   <span className={`text-xs tabular-nums font-medium ${
                     deltaPositive ? "text-emerald-400" : "text-red-400"
                   }`}>
-                    {deltaPositive ? "▲" : "▼"}{Math.abs(displayIndex.delta24h).toFixed(1)}
+                    {deltaPositive ? "▲" : "▼"}{Math.abs(displayIndex.delta24h ?? 0).toFixed(1)}
                   </span>
                 )}
               </div>

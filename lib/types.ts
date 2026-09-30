@@ -49,6 +49,7 @@ export interface GammaMarket {
   question: string;
   slug: string;
   conditionId: string;
+  umaResolutionStatus?: string;
   outcomes: string; // JSON string: "[\"Yes\",\"No\"]"
   outcomePrices: string; // JSON string: "[\"0.65\",\"0.35\"]"
   volume: string;
@@ -212,7 +213,7 @@ export interface PulseIndex {
   // Semantic band label
   band: "Extreme Bearish" | "Bearish" | "Neutral" | "Bullish" | "Extreme Bullish";
   // Change in score vs. 24h ago (pp)
-  delta24h: number;
+  delta24h: number | null;
   // Component signal scores (each 0–100) for transparency display
   signals: {
     momentum: number;           // OI-weighted 7d price change (direction)
@@ -278,7 +279,7 @@ export interface OperatorIndex {
   sourceScope: IndexSourceScope;
   score: number;
   confidence: number;
-  delta24h: number;
+  delta24h: number | null;
   coverage: IndexCoverage;
   diagnostics: IndexDiagnostics;
   signals: Record<string, number>;

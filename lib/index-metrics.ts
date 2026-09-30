@@ -2,8 +2,8 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-export function brierScore(predictions: number[], outcomes: number[]): number {
-  if (predictions.length === 0 || predictions.length !== outcomes.length) return 0;
+export function brierScore(predictions: number[], outcomes: number[]): number | null {
+  if (predictions.length === 0 || predictions.length !== outcomes.length || predictions.some((p) => !Number.isFinite(p) || p < 0 || p > 1) || outcomes.some((o) => o !== 0 && o !== 1)) return null;
   let sum = 0;
   for (let i = 0; i < predictions.length; i++) {
     const p = clamp(predictions[i], 0, 1);
@@ -14,8 +14,8 @@ export function brierScore(predictions: number[], outcomes: number[]): number {
   return sum / predictions.length;
 }
 
-export function logLoss(predictions: number[], outcomes: number[]): number {
-  if (predictions.length === 0 || predictions.length !== outcomes.length) return 0;
+export function logLoss(predictions: number[], outcomes: number[]): number | null {
+  if (predictions.length === 0 || predictions.length !== outcomes.length || predictions.some((p) => !Number.isFinite(p) || p < 0 || p > 1) || outcomes.some((o) => o !== 0 && o !== 1)) return null;
   const eps = 1e-12;
   let sum = 0;
   for (let i = 0; i < predictions.length; i++) {
@@ -26,8 +26,8 @@ export function logLoss(predictions: number[], outcomes: number[]): number {
   return -sum / predictions.length;
 }
 
-export function calibrationSlope(predictions: number[], outcomes: number[]): number {
-  if (predictions.length < 3 || predictions.length !== outcomes.length) return 0;
+export function binaryOutcomeLogitOlsSlope(predictions: number[], outcomes: number[]): number | null {
+  if (predictions.length < 3 || predictions.length !== outcomes.length || predictions.some((p) => !Number.isFinite(p) || p < 0 || p > 1) || outcomes.some((o) => o !== 0 && o !== 1)) return null;
 
   const x = predictions.map((p) => {
     const pp = clamp(p, 1e-6, 1 - 1e-6);
@@ -45,7 +45,7 @@ export function calibrationSlope(predictions: number[], outcomes: number[]): num
     den += (x[i] - meanX) * (x[i] - meanX);
   }
 
-  if (den === 0) return 0;
+  if (den === 0) return null;
   return num / den;
 }
 
@@ -54,15 +54,15 @@ interface Ranked {
   label: number;
 }
 
-export function auc(scores: number[], labels: number[]): number {
-  if (scores.length < 2 || scores.length !== labels.length) return 0.5;
+export function auc(scores: number[], labels: number[]): number | null {
+  if (scores.length < 2 || scores.length !== labels.length) return null;
 
   const ranked: Ranked[] = scores.map((score, i) => ({ score, label: labels[i] > 0 ? 1 : 0 }));
   ranked.sort((a, b) => b.score - a.score);
 
   const pos = ranked.reduce((s, r) => s + (r.label === 1 ? 1 : 0), 0);
   const neg = ranked.length - pos;
-  if (pos === 0 || neg === 0) return 0.5;
+  if (pos === 0 || neg === 0) return null;
 
   let tp = 0;
   let fp = 0;
@@ -92,10 +92,10 @@ export function auc(scores: number[], labels: number[]): number {
 }
 
 export interface ForecastMetricSummary {
-  brier: number;
-  logLoss: number;
-  calibrationSlope: number;
-  directionalAuc24h: number;
+  brier: number | null;
+  logLoss: number | null;
+  binaryOutcomeLogitOlsSlope: number | null;
+  directionalAuc24h: number | null;
   sampleSize: number;
 }
 
@@ -103,7 +103,7 @@ export function summarizeForecastMetrics(predictions: number[], outcomes: number
   return {
     brier: brierScore(predictions, outcomes),
     logLoss: logLoss(predictions, outcomes),
-    calibrationSlope: calibrationSlope(predictions, outcomes),
+    binaryOutcomeLogitOlsSlope: binaryOutcomeLogitOlsSlope(predictions, outcomes),
     directionalAuc24h: auc(directionalScores, directionalLabels),
     sampleSize: predictions.length,
   };
