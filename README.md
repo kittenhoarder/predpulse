@@ -1,5 +1,17 @@
 # Predpulse
 
+## Fed decision outlook (SPEC-005)
+
+The homepage shows the nearest supported Fed meeting from the existing sampled
+Polymarket acquisition, with five raw YES bid/ask midpoint buckets and their total.
+Visitors can opt into normalization only when coverage, rules, quotes and total
+pass the published checks. Open-ended tails mean no expected rate change is shown.
+No additional venue requests, polling or Blob writes are required.
+
+See [SPEC-005](docs/spec-005-fed-decision-outlook.md) for methodology and exclusions.
+The feature publishes to an isolated Blob prefix on its PR branch. After merging,
+dispatch the publisher on `main` once to populate it in production.
+
 ## Hourly snapshot delivery (SPEC-01)
 
 The homepage requests `/api/bootstrap` once, then displays the latest saved market

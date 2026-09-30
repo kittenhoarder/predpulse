@@ -23,6 +23,7 @@ export async function GET() {
     observations: snapshot.observations ?? null,
     monitor: snapshot.monitor ?? null,
     related: snapshot.related ?? null,
+    decisionDistribution: snapshot.decisionDistribution ?? null,
   }, {
     headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" },
   });

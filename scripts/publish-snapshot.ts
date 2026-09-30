@@ -26,6 +26,12 @@ async function main(): Promise<void> {
     generatedAt: snapshot.generatedAt,
     selectedMarkets: snapshot.markets.length,
     sourceCounts: snapshot.sourceCounts,
+    decisionDistribution: snapshot.decisionDistribution ? {
+      meetingDate: snapshot.decisionDistribution.meetingDate,
+      coherent: snapshot.decisionDistribution.coherent,
+      issue: snapshot.decisionDistribution.issue,
+      rawSum: snapshot.decisionDistribution.rawSum,
+    } : null,
   });
 }
 
