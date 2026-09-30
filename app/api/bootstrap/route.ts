@@ -24,6 +24,7 @@ export async function GET() {
     monitor: snapshot.monitor ?? null,
     related: snapshot.related ?? null,
     decisionDistribution: snapshot.decisionDistribution ?? null,
+    eventOutlooks: snapshot.eventOutlooks ?? null,
   }, {
     headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" },
   });

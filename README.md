@@ -1,14 +1,15 @@
 # Predpulse
 
-## Fed decision outlook (SPEC-005)
+## Automated event outlooks (SPEC-005)
 
-The homepage shows the nearest supported Fed meeting from the existing sampled
-Polymarket acquisition, with five raw YES bid/ask midpoint buckets and their total.
-Visitors can opt into normalization only when coverage, rules, quotes and total
-pass the published checks. Open-ended tails mean no expected rate change is shown.
-No additional venue requests, polling or Blob writes are required.
+The homepage automatically selects up to three upcoming events across central banks,
+elections, economic releases and policy/geopolitics from the existing Polymarket
+sample. It shows raw YES book midpoints with contract questions and provenance.
+Unverified candidate sets and overlapping deadlines are never normalized. The
+supported Fed meeting adapter offers opt-in normalization only after validating its
+complete five-bucket partition. No extra venue requests, polling or Blob writes.
 
-See [SPEC-005](docs/spec-005-fed-decision-outlook.md) for methodology and exclusions.
+See [SPEC-005](docs/spec-005-event-outlooks.md) for selection and interpretation.
 The feature publishes to an isolated Blob prefix on its PR branch. After merging,
 dispatch the publisher on `main` once to populate it in production.
 

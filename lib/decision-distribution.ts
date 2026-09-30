@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { GammaEvent, GammaMarket } from "./types";
+import type { GammaEvent } from "./types";
+import { readYesQuote } from "./outlook-quotes";
 
 // This is a versioned adapter for one explicit contract family, not a title matcher.
 export const DECISION_METHOD = "fed-meeting-buckets-v1";
@@ -63,20 +64,6 @@ function meetingDate(event: GammaEvent): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-function quote(market: GammaMarket | undefined): Pick<DecisionBucket, "bid" | "ask" | "midpoint"> {
-  // Gamma book fields are used only for the supported Yes-first binary adapter.
-  // Reordered/unknown outcomes are not guessed into an analytical price.
-  let outcomes: unknown;
-  try { outcomes = JSON.parse(market?.outcomes ?? "null"); } catch { return { bid: null, ask: null, midpoint: null }; }
-  const bid = market?.bestBid, ask = market?.bestAsk;
-  if (!market?.active || market.closed || market.archived || !Array.isArray(outcomes) ||
-      outcomes.length !== 2 || outcomes[0] !== "Yes" || outcomes[1] !== "No" ||
-      typeof bid !== "number" || typeof ask !== "number" || !Number.isFinite(bid) || !Number.isFinite(ask) ||
-      bid < 0 || ask <= 0 || ask > 1 || bid > ask || ask - bid > 0.10 + 1e-9) {
-    return { bid: null, ask: null, midpoint: null };
-  }
-  return { bid, ask, midpoint: (bid + ask) / 2 };
-}
 
 /** Pure, bounded publication-time discovery. No vendor or storage calls. */
 export function buildDecisionDistribution(events: GammaEvent[], asOf: string): DecisionDistribution | null {
@@ -96,7 +83,7 @@ export function buildDecisionDistribution(events: GammaEvent[], asOf: string): D
   const groups = LABELS.map((label) => markets.filter((m) => clean(m.groupItemTitle ?? "") === label));
   const buckets = LABELS.map((label, i): DecisionBucket => {
     const market = groups[i].length === 1 ? groups[i][0] : undefined;
-    return { label, marketId: market?.id ?? null, ...quote(market), normalized: null,
+    return { label, marketId: market?.id ?? null, ...readYesQuote(market), normalized: null,
       venueUpdatedAt: market?.updatedAt && Number.isFinite(Date.parse(market.updatedAt)) ? market.updatedAt : null };
   });
   const closesAt = groups.flat()[0]?.endDate ?? "";

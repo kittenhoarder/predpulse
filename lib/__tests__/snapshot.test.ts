@@ -45,6 +45,15 @@ describe("snapshot publication safeguards", () => {
     expect(() => validateSnapshot(snapshot({ pulse: [] }))).toThrow();
   });
 
+  it("accepts older generations and checks the optional event outlook digest", () => {
+    expect(() => validateSnapshot(snapshot())).not.toThrow();
+    const s = snapshot();
+    s.eventOutlooks = { version: 1, methodology: "event-outlooks-v1", asOf: s.generatedAt, screened: 0, items: [] };
+    expect(() => validateSnapshot(s)).not.toThrow();
+    s.eventOutlooks.asOf = "2026-01-01T00:00:00Z";
+    expect(() => validateSnapshot(s)).toThrow();
+  });
+
   it("quarantines missing or collapsed core sources without evicting prior data", () => {
     const previous = snapshot();
     expect(isSafeSnapshot(snapshot({ sourceCounts: { polymarket: 0, kalshi: 60, manifold: 20 } }), previous)).toBe(false);

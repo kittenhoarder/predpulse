@@ -28,7 +28,7 @@ export default function DecisionDistributionSection({ distribution: d, status }:
     <section id="fed-decision" aria-labelledby="fed-decision-title" className="my-5 rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">Decision outlook</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-primary">Central banks</p>
           <h2 id="fed-decision-title" className="mt-1 text-xl font-semibold tracking-tight">{date ? `Fed meeting · ${date}` : "Next Fed decision"}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{d ? "Polymarket · YES bid/ask midpoints" : "No supported meeting in the current sample"}{stale ? " · Last-known prices" : ""}</p>
         </div>

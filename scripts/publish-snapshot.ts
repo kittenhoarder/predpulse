@@ -26,12 +26,10 @@ async function main(): Promise<void> {
     generatedAt: snapshot.generatedAt,
     selectedMarkets: snapshot.markets.length,
     sourceCounts: snapshot.sourceCounts,
-    decisionDistribution: snapshot.decisionDistribution ? {
-      meetingDate: snapshot.decisionDistribution.meetingDate,
-      coherent: snapshot.decisionDistribution.coherent,
-      issue: snapshot.decisionDistribution.issue,
-      rawSum: snapshot.decisionDistribution.rawSum,
-    } : null,
+    eventOutlooks: snapshot.eventOutlooks?.items.map((item) => ({
+      title: item.title, topic: item.topic, displayedContracts: item.contracts.length,
+      verifiedPartition: item.decision?.coherent ?? false,
+    })) ?? null,
   });
 }
 

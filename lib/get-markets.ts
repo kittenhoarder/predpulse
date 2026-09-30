@@ -435,7 +435,7 @@ export interface AllSourcesResult {
   kalshiMarkets: ProcessedMarket[];
   manifoldMarkets: ProcessedMarket[];
   /** Raw event families are retained only during fresh publisher acquisition. */
-  decisionEvents?: GammaEvent[];
+  outlookEvents?: GammaEvent[];
 }
 
 /**
@@ -446,10 +446,10 @@ export interface AllSourcesResult {
 export async function fetchAllSources(options: { fresh?: boolean; source?: GetMarketsOptions["source"] } = {}): Promise<AllSourcesResult> {
   const t0 = Date.now();
   const include = (source: ProcessedMarket["source"]) => !options.source || options.source === "all" || options.source === source;
-  let decisionEvents: GammaEvent[] | undefined;
+  let outlookEvents: GammaEvent[] | undefined;
   const [initialPolymarkets, initialKalshiMarkets, manifoldMarkets] = await Promise.all([
     include("polymarket") ? fetchPolymarkets(options.fresh, options.fresh ? (events) => {
-      decisionEvents = events.filter((event) => /^Fed Decision in [A-Za-z]+\?$/i.test(event.title));
+      outlookEvents = events;
     } : undefined) : Promise.resolve([]),
     include("kalshi") ? fetchKalshi(options.fresh) : Promise.resolve([]),
     include("manifold") ? fetchManifold(options.fresh) : Promise.resolve([]),
@@ -462,7 +462,7 @@ export async function fetchAllSources(options: { fresh?: boolean; source?: GetMa
     `[get-markets] source counts poly=${polymarkets.length} kalshi=${kalshiMarkets.length} manifold=${manifoldMarkets.length} totalMs=${dt}`,
   );
 
-  return { polymarkets, kalshiMarkets, manifoldMarkets, ...(decisionEvents ? { decisionEvents } : {}) };
+  return { polymarkets, kalshiMarkets, manifoldMarkets, ...(outlookEvents ? { outlookEvents } : {}) };
 }
 
 /**
