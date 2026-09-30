@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { EventOutlook, EventOutlooks } from "@/lib/event-outlooks";
 import type { DecisionDistribution } from "@/lib/decision-distribution";
@@ -27,8 +28,8 @@ function ContractOutlook({ item, status }: { item: EventOutlook; status: Status 
       </MetaNote>
     </div>
     <div className="mt-4 flex flex-wrap justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-      <span>{item.contracts.length} shown / {item.activeContracts} active contracts</span>
-      <span>Earliest shown close {date(item.closesAt)}</span>
+      <span>{item.contracts.length} selected / {item.activeContracts} active contracts</span>
+      <span>Earliest selected close {date(item.closesAt)}</span>
     </div>
     <div className="mt-4 space-y-4">
       {contracts.map((contract) => <div key={contract.id}>
@@ -60,7 +61,7 @@ export default function EventOutlooksSection({ outlooks, legacyDecision, status 
 }) {
   return <section id="event-outlooks" aria-labelledby="event-outlooks-title" className="my-6">
     <div className="flex items-center justify-between gap-3">
-      <h2 id="event-outlooks-title" className="text-xl font-semibold tracking-tight">Event outlooks</h2>
+      <div><h2 id="event-outlooks-title" className="text-xl font-semibold tracking-tight">Event outlooks</h2><Link href="/research" className="mt-1 inline-block text-xs text-primary hover:underline">Evidence & history →</Link></div>
       <MetaNote kind="method" title="How events are selected">
         <p>Automatically screens the existing sampled Polymarket feed for central-bank decisions, elections, economic releases and policy or geopolitical deadlines. Requires at least $10,000 of venue-reported 24h volume and a future close within 90 days.</p>
         <p>Ranks qualifying events by activity, then earliest close, with one event per topic and at most three cards. This is a transparent discovery heuristic, not an objective ranking of importance or a comprehensive calendar. Events outside the sample or without usable quotes may be absent.</p>

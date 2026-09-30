@@ -24,8 +24,8 @@ interface PulseCardProps {
 
 export default function PulseCard({ index, large = false, showDetails, onToggleDetails }: PulseCardProps) {
   const colors = BAND_COLORS[index.band];
-  const hasDelta = index.delta24h !== 0;
-  const deltaPositive = index.delta24h > 0;
+  const hasDelta = index.delta24h !== null && index.delta24h !== 0;
+  const deltaPositive = (index.delta24h ?? 0) > 0;
   const sparkData = index.history.map((s) => ({ v: s.score }));
 
   return (
@@ -59,7 +59,7 @@ export default function PulseCard({ index, large = false, showDetails, onToggleD
           <span className={`text-[10px] tabular-nums font-medium ml-auto shrink-0 ${
             deltaPositive ? "text-emerald-400" : "text-red-400"
           }`}>
-            {deltaPositive ? "▲" : "▼"}{Math.abs(index.delta24h).toFixed(1)}
+            {deltaPositive ? "▲" : "▼"}{Math.abs(index.delta24h ?? 0).toFixed(1)}
           </span>
         )}
       </div>

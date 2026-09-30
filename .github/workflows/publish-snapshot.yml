@@ -14,6 +14,7 @@ on:
       - feat/spec-03-event-monitor
       - feat/spec-004-venue-comparisons
       - feat/spec-005-event-distribution
+      - feat/spec-006-durable-evidence
 
 permissions:
   contents: read
