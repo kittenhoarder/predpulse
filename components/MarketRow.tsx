@@ -5,7 +5,10 @@ import type { ProcessedMarket, LivePrice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
-import ExpandedPanel from "./ExpandedPanel";
+import dynamic from "next/dynamic";
+const ExpandedPanel = dynamic(() => import("./ExpandedPanel"), {
+  loading: () => <div role="status" className="p-4 text-xs text-muted-foreground">Loading market details…</div>,
+});
 import { isWatchlisted, toggleWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
 import { formatCurrency, formatContracts, formatChange, marketTradeUrl } from "@/lib/format";
 

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { buildIndexProducts } from "../attention-index";
+import { fedEvent, T0 } from "./fixtures/fed-event";
 import { NextRequest } from "next/server";
 type SavedFixture = { generatedAt: string; version?: number; indexProducts?: { asOf: string; products: unknown[] } };
 const state = vi.hoisted(() => ({ snapshot: null as SavedFixture | null }));
@@ -9,9 +11,14 @@ afterEach(() => { state.snapshot = null; vi.restoreAllMocks(); });
 describe("saved-only index serving", () => {
   it("serves the saved generation time and digest without upstream acquisition", async () => {
     const network = vi.spyOn(globalThis, "fetch");
-    state.snapshot = { generatedAt: "2026-10-01T12:00:00.000Z", indexProducts: { asOf: "2026-10-01T12:00:00.000Z", products: [] } };
+    const digest = buildIndexProducts([{...fedEvent(),volume24hr:10000}], null, null, T0);
+    state.snapshot = { generatedAt: T0, indexProducts: digest };
     const response = await GET(new NextRequest("https://predpulse.xyz/api/indices"));
-    expect((await response.json()).asOf).toBe(state.snapshot.generatedAt);
+    const body = await response.json();
+    expect(body.asOf).toBe(state.snapshot.generatedAt);
+    expect(body.indexProducts).toEqual(digest);
+    expect(body.indexProducts.marketAttention.state).toBe("available");
+    expect(body.indexProducts.outcomeBenchmark.state).toBe("available");
     expect(network).not.toHaveBeenCalled();
   });
   it("reports missing/archived evidence without computing a live fallback", async () => {
