@@ -86,12 +86,17 @@ export function buildDecisionDistribution(events: GammaEvent[], asOf: string): D
     return { label, marketId: market?.id ?? null, ...readYesQuote(market), normalized: null,
       venueUpdatedAt: market?.updatedAt && Number.isFinite(Date.parse(market.updatedAt)) ? market.updatedAt : null };
   });
+  const duplicateIds = new Set(buckets.filter((b, i) => b.marketId && buckets.some((other, j) => i !== j && other.marketId === b.marketId)).map((b) => b.marketId));
+  for (const bucket of buckets) if (duplicateIds.has(bucket.marketId)) {
+    bucket.marketId = null; bucket.bid = null; bucket.ask = null; bucket.midpoint = null; bucket.venueUpdatedAt = null;
+  }
   const closesAt = groups.flat()[0]?.endDate ?? "";
   const complete = groups.every((group) => group.length === 1);
   const validRules = complete && markets.every((m) => clean(m.description ?? "") === rules && m.endDate === closesAt) &&
     Date.parse(closesAt) > now && Date.parse(closesAt) >= Date.parse(date) &&
     Date.parse(closesAt) - Date.parse(date) <= 45 * 86400_000;
-  const validQuotes = buckets.every((bucket) => bucket.midpoint !== null);
+  const validQuotes = buckets.every((bucket) => bucket.midpoint !== null) &&
+    new Set(buckets.map((bucket) => bucket.marketId)).size === LABELS.length;
   const recent = buckets.every((bucket) => bucket.venueUpdatedAt &&
     now - Date.parse(bucket.venueUpdatedAt) >= -5 * 60_000 && now - Date.parse(bucket.venueUpdatedAt) <= MAX_QUOTE_AGE);
   const rawSum = validQuotes ? buckets.reduce((sum, bucket) => sum + bucket.midpoint!, 0) : null;

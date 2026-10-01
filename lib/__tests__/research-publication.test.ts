@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fedEvent } from "./fixtures/fed-event";
 import type { GammaEvent, ProcessedMarket } from "../types";
 
 const storage = vi.hoisted(() => new Map<string, { text: string; etag: string }>());
@@ -55,6 +56,24 @@ describe("scheduled immutable capture", () => {
     expect(second.indexProducts!.baselineAt).toBe(first.generatedAt);
     expect(await restarted.loadPublishedSnapshot()).toEqual(second);
     expect(storage.has("predpulse/latest.json")).toBe(false);
+  });
+
+  it("persists the complete Fed partition across restart with the existing five reads and two writes", async () => {
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "test-token"); vi.stubEnv("GITHUB_REF_NAME", "feat/spec-008-outcome-benchmarks");
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z")); vi.resetModules();
+    const network = vi.spyOn(globalThis, "fetch");
+    const sources = { polymarkets: [market("polymarket")], kalshiMarkets: [market("kalshi")], manifoldMarkets: [], outlookEvents: [fedEvent([.08,.12,.55,.20,.05])] };
+    const first = await (await import("../snapshot")).publishSnapshot(sources);
+    expect(first.indexProducts!.outcomeBenchmark!.headline).toBeCloseTo(5);
+    expect(gets).toHaveBeenCalledTimes(3); expect(puts).toHaveBeenCalledTimes(2);
+    gets.mockClear(); puts.mockClear(); vi.resetModules(); vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    const restarted = await import("../snapshot");
+    const second = await restarted.publishSnapshot({...sources, outlookEvents:[fedEvent(undefined,new Date().toISOString())]});
+    expect(gets).toHaveBeenCalledTimes(5); expect(puts).toHaveBeenCalledTimes(2); expect(network).not.toHaveBeenCalled();
+    expect(second.indexProducts!.outcomeBenchmark!.change24h).toBeCloseTo(-15);
+    expect(await restarted.loadPublishedSnapshot()).toEqual(second);
+    expect(storage.has("predpulse/latest.json")).toBe(false);
+    expect(Array.from(storage.keys()).every(path=>path.startsWith("predpulse/previews/spec-08/"))).toBe(true);
   });
 
   it("fails closed before any storage operation when production publication has no main branch identity", async () => {
