@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { cache } from "react";
+import { SITE_URL, jsonLd, pageMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { fetchEventBySlug, fetchTags } from "@/lib/gamma";
 import { buildTagMap, processEvents } from "@/lib/process-markets";
@@ -8,57 +10,24 @@ import MarketDetailClient from "./MarketDetailClient";
 import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
+const loadEvent = cache((slug: string) => fetchEventBySlug(slug).catch(() => null));
 
 interface PageProps {
   params: { slug: string };
 }
 
-/** Build OG metadata so every shared link gets a rich preview card. */
+/** Share metadata and page content use the same venue event acquisition. */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const event = await fetchEventBySlug(params.slug).catch(() => null);
-  if (!event) {
-    return { title: "Market not found — Predpulse" };
-  }
-
-  const market = event.markets?.[0];
-  const prob = market
-    ? (parseFloat(
-        JSON.parse(market.outcomePrices ?? "[]")[0] ?? "0"
-      ) * 100).toFixed(1)
-    : "—";
-  const change = market
-    ? ((market.oneDayPriceChange ?? 0) * 100).toFixed(1)
-    : "0";
-  const category = event.tags?.[0]?.label ?? "";
-
-  const ogUrl = new URL(
-    `/api/og?title=${encodeURIComponent(event.title)}&prob=${prob}&change=${change}%25&category=${encodeURIComponent(category)}`,
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"
-  );
-
-  return {
-    alternates: { canonical: `/market/${params.slug}` },
-    title: `${event.title} — Predpulse`,
-    description: `Current probability: ${prob}% · 24h change: ${Number(change) >= 0 ? "+" : ""}${change}% via Predpulse`,
-    openGraph: {
-      title: event.title,
-      description: `${prob}% probability · ${Number(change) >= 0 ? "+" : ""}${change}% 24h`,
-      images: [{ url: ogUrl.toString(), width: 1200, height: 630 }],
-      type: "website",
-      url: `/market/${params.slug}`,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: event.title,
-      description: `${prob}% probability · ${Number(change) >= 0 ? "+" : ""}${change}% 24h`,
-      images: [ogUrl.toString()],
-    },
-  };
+  const event = await loadEvent(params.slug);
+  if (!event) notFound();
+  return pageMetadata(`${event.title} | Predpulse`,
+    "Explore Polymarket outcome contracts, market prices and resolution rules. Inspect the original venue event through Predpulse.",
+    `/market/${encodeURIComponent(params.slug)}`);
 }
 
 export default async function MarketDetailPage({ params }: PageProps) {
   const [event, tags] = await Promise.all([
-    fetchEventBySlug(params.slug).catch(() => null),
+    loadEvent(params.slug),
     fetchTags().catch(() => []),
   ]);
 
@@ -70,14 +39,14 @@ export default async function MarketDetailPage({ params }: PageProps) {
 
   if (!market) notFound();
 
-  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz";
+  const BASE_URL = SITE_URL;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
@@ -85,12 +54,6 @@ export default async function MarketDetailPage({ params }: PageProps) {
               {
                 "@type": "ListItem",
                 position: 2,
-                name: market.categories[0] ?? "Markets",
-                item: BASE_URL,
-              },
-              {
-                "@type": "ListItem",
-                position: 3,
                 name: market.question,
                 item: `${BASE_URL}/market/${params.slug}`,
               },

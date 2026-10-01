@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadPublishedSnapshot } from "@/lib/snapshot";
+import { loadPageSnapshot } from "@/lib/page-snapshot";
+import { pageMetadata } from "@/lib/seo";
 import { snapshotAgeStatus } from "@/lib/snapshot-response";
 import { marketTradeUrl } from "@/lib/format";
 import PulseLogo from "@/components/PulseLogo";
@@ -8,9 +9,19 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: { source: string; id: string } }) {
+  if (params.source !== "kalshi" && params.source !== "polymarket") notFound();
+  const snapshot = await loadPageSnapshot();
+  const market = snapshot?.markets.find((m) => m.source === params.source && m.id === params.id);
+  if (!market) notFound();
+  return pageMetadata(`${market.question} | Predpulse`,
+    `Inspect captured ${params.source === "kalshi" ? "Kalshi" : "Polymarket"} contract prices, screened changes and resolution rules.`,
+    `/events/${params.source}/${encodeURIComponent(params.id)}`);
+}
+
 export default async function EventPage({ params }: { params: { source: string; id: string } }) {
   if (params.source !== "kalshi" && params.source !== "polymarket") notFound();
-  const snapshot = await loadPublishedSnapshot();
+  const snapshot = await loadPageSnapshot();
   const market = snapshot?.markets.find((m) => m.source === params.source && m.id === params.id);
   if (!snapshot || !market) notFound();
 

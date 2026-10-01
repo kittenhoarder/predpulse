@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { loadPublishedSnapshot } from "@/lib/snapshot";
+import { loadPageSnapshot } from "@/lib/page-snapshot";
+import { pageMetadata } from "@/lib/seo";
 import RelatedPairCard from "@/components/RelatedPairCard";
 import PulseLogo from "@/components/PulseLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: { pairId: string } }) {
+  const snapshot = await loadPageSnapshot();
+  const item = snapshot?.related?.items.find((pair) => pair.id === params.pairId);
+  if (!item) notFound();
+  return pageMetadata(`${item.markets[0].question} | Venue comparison | Predpulse`,
+    "Inspect related Polymarket and Kalshi contracts, their quoted prices and settlement differences. Similar titles do not establish identical outcomes.",
+    `/compare/${encodeURIComponent(params.pairId)}`);
+}
+
 export default async function ComparePage({ params }: { params: { pairId: string } }) {
-  const snapshot = await loadPublishedSnapshot();
+  const snapshot = await loadPageSnapshot();
   const item = snapshot?.related?.items.find((pair) => pair.id === params.pairId);
   if (!item) notFound();
   return (
@@ -18,7 +28,8 @@ export default async function ComparePage({ params }: { params: { pairId: string
       </div></header>
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <Link href="/#monitor" className="text-xs text-muted-foreground hover:text-foreground">← Back to monitor</Link>
-        <div className="mt-6"><RelatedPairCard pair={item} asOf={snapshot!.generatedAt} /></div>
+        <h1 className="mt-6 text-2xl font-semibold tracking-tight">Across-venue comparison</h1>
+        <div className="mt-4"><RelatedPairCard pair={item} asOf={snapshot!.generatedAt} /></div>
       </main>
     </div>
   );

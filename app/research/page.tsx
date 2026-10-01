@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { pageMetadata } from "@/lib/seo";
 import { loadPublishedSnapshot, loadHistoricalSnapshot, listHistoricalSnapshots } from "@/lib/snapshot";
 import { researchEvaluation } from "@/lib/research-evaluation";
 import MetaNote from "@/components/MetaNote";
@@ -6,6 +7,12 @@ import PulseLogo from "@/components/PulseLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
+export function generateMetadata({ searchParams }: { searchParams: { at?: string } }) {
+  return { ...pageMetadata("Prediction Market Evidence & History | Predpulse",
+    "Inspect saved prediction market quotes, contract rules and comparable observations. Captured evidence with explicit coverage and forecast evaluation limitations.", "/research"),
+    ...(searchParams.at ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 export default async function ResearchPage({ searchParams }: { searchParams: { at?: string } }) {
   const at = searchParams.at;
   const validAt = !at || (at.length <= 40 && Number.isFinite(Date.parse(at)));
