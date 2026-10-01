@@ -76,6 +76,19 @@ describe("scheduled immutable capture", () => {
     expect(Array.from(storage.keys()).every(path=>path.startsWith("predpulse/previews/spec-08/"))).toBe(true);
   });
 
+  it("renews attention across restart without additional reads, writes or acquisition", async()=>{
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN","test-token");vi.stubEnv("GITHUB_REF_NAME","feat/spec-009-market-attention");
+    vi.useFakeTimers();vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));vi.resetModules();const network=vi.spyOn(globalThis,"fetch");
+    const input=(id:string,slug:string)=>({...fedEvent(),id,slug:`attention-${id}`,title:`Current ${slug} event`,volume24hr:10000,tags:[{slug}]} as GammaEvent);
+    const sources={polymarkets:[market("polymarket")],kalshiMarkets:[market("kalshi")],manifoldMarkets:[],outlookEvents:[input("7000","economics")]};
+    const first=await(await import("../snapshot")).publishSnapshot(sources);expect(first.indexProducts!.marketAttention!.state).toBe("available");
+    expect(gets).toHaveBeenCalledTimes(3);expect(puts).toHaveBeenCalledTimes(2);gets.mockClear();puts.mockClear();vi.resetModules();vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
+    const restarted=await import("../snapshot"),second=await restarted.publishSnapshot({...sources,outlookEvents:[input("8000","sports")]});
+    expect(gets).toHaveBeenCalledTimes(5);expect(puts).toHaveBeenCalledTimes(2);expect(network).not.toHaveBeenCalled();
+    expect(second.indexProducts!.marketAttention!.categories[0].share).toBe(1);expect(second.indexProducts!.marketAttention!.categories[3].count).toBe(0);
+    expect(await restarted.loadPublishedSnapshot()).toEqual(second);expect([...storage.keys()].every(path=>path.startsWith("predpulse/previews/spec-09-attention/"))).toBe(true);
+  });
+
   it("fails closed before any storage operation when production publication has no main branch identity", async () => {
     vi.stubEnv("GITHUB_REF_NAME", ""); vi.stubEnv("VERCEL_GIT_COMMIT_REF", ""); vi.stubEnv("VERCEL_ENV", "production"); vi.resetModules();
     const publisher = await import("../snapshot");
