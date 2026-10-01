@@ -15,17 +15,17 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   title: "Predpulse — Prediction Market Intelligence",
   description:
-    "Real-time dashboard tracking prediction market movers across Polymarket, Kalshi & Manifold. Featuring the Predpulse proprietary category sentiment index.",
+    "Hourly prediction market observations across Polymarket, Kalshi and Manifold, with visual indices of changes in market expectations.",
   openGraph: {
     title: "Predpulse — Prediction Market Intelligence",
-    description: "Real-time movers, gainers, and the Predpulse sentiment index across Polymarket & Kalshi.",
+    description: "Prediction market observations and visual Belief Shift indices.",
     type: "website",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
     title: "Predpulse — Prediction Market Intelligence",
-    description: "Real-time movers, gainers, and the Predpulse sentiment index across Polymarket & Kalshi.",
+    description: "Prediction market observations and visual Belief Shift indices.",
   },
 };
 

@@ -16,7 +16,7 @@ export async function GET() {
   return NextResponse.json({
     markets,
     monitorMarkets: snapshot.markets.filter((m) => monitored.has(`${m.source}:${m.id}`) && !firstPage.has(`${m.source}:${m.id}`)),
-    pulse: { indices: snapshot.pulse, computedAt: snapshot.generatedAt },
+    indexProducts: snapshot.indexProducts ?? null,
     generatedAt: snapshot.generatedAt,
     status,
     sourceCounts: snapshot.sourceCounts,

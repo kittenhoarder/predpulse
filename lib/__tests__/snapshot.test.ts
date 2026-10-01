@@ -22,7 +22,7 @@ function snapshot(overrides: Partial<PublishedSnapshot> = {}): PublishedSnapshot
     version: 1, generatedAt: new Date().toISOString(),
     sourceCounts: { polymarket: 100, kalshi: 60, manifold: 20 },
     markets: [market("polymarket", "p"), market("kalshi", "k"), market("manifold", "m")],
-    pulse: [{ category: "politics", label: "Politics", score: 50 } as PublishedSnapshot["pulse"][number]],
+    pulse: [{ category: "politics", label: "Politics", score: 50 } as NonNullable<PublishedSnapshot["pulse"]>[number]],
     ...overrides,
   };
 }

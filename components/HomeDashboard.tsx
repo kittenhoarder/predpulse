@@ -3,14 +3,15 @@
 import { useMemo } from "react";
 import useSWR from "swr";
 import NewsroomSection from "./NewsroomSection";
-import PulseDashboard from "./PulseDashboard";
+import IndicesSection from "./IndicesSection";
+import type { IndexProductsDigest } from "@/lib/index-products";
 import MarketTable from "./MarketTable";
 import ObservedMoves from "./ObservedMoves";
 import EventMonitorSection from "./EventMonitorSection";
 import MetaNote from "./MetaNote";
 import RelatedPairCard from "./RelatedPairCard";
 import type { RelatedDigest } from "@/lib/related-markets";
-import type { MarketsApiResponse, PulseApiResponse, ProcessedMarket } from "@/lib/types";
+import type { MarketsApiResponse, ProcessedMarket } from "@/lib/types";
 import type { ObservationDigest } from "@/lib/observations";
 import type { EventMonitor } from "@/lib/event-monitor";
 import type { DecisionDistribution } from "@/lib/decision-distribution";
@@ -19,7 +20,7 @@ import type { EventOutlooks } from "@/lib/event-outlooks";
 
 interface Bootstrap {
   markets: MarketsApiResponse;
-  pulse: PulseApiResponse;
+  indexProducts?: IndexProductsDigest | null;
   generatedAt: string;
   status: "hourly" | "delayed" | "stale";
   sourceCounts: Record<ProcessedMarket["source"], number>;
@@ -72,7 +73,7 @@ export default function HomeDashboard() {
             </section>
           )}
           {data && data.status !== "stale" && <ObservedMoves digest={data.observations} status={data.status} />}
-          <PulseDashboard initialData={data?.pulse} />
+          <IndicesSection digest={data?.indexProducts ?? null} />
           <div className="mb-1">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
               {data?.status === "stale" ? "Last-known markets · historical changes" : "Markets"}

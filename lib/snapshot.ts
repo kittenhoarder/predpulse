@@ -2,7 +2,8 @@ import { get, put } from "@vercel/blob";
 import type { ProcessedMarket, PulseIndex } from "./types";
 import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
-import { computePulse } from "./pulse";
+import { buildBeliefShift, fitIndexDigest, validateIndexProducts } from "./belief-shift";
+import { INDEX_MAX_BYTES, type IndexProductsDigest } from "./index-products";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
 import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from "./related-markets";
@@ -18,22 +19,30 @@ const MONITOR_BRANCH = "feat/spec-03-event-monitor";
 const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
 const DECISION_BRANCH = "feat/spec-005-event-distribution";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === "feat/spec-006-durable-evidence" ? "predpulse/previews/spec-06" :
+const PREFIX = branch === "feat/spec-007-belief-shift" ? "predpulse/previews/spec-07" :
+  branch === "feat/spec-006-durable-evidence" ? "predpulse/previews/spec-06" :
   branch === DECISION_BRANCH ? "predpulse/previews/spec-05" :
   branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
   branch === MONITOR_BRANCH ? "predpulse/previews/spec-03" :
   branch === KALSHI_BRANCH ? "predpulse/previews/kalshi" :
-  branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" : "predpulse";
+  branch === OBSERVATIONS_BRANCH ? "predpulse/previews/spec-02" :
+  branch && branch !== "main" ? `predpulse/previews/${branch.replace(/[^a-zA-Z0-9-]/g, "-").slice(0, 80)}` :
+  process.env.VERCEL_ENV === "preview" ? "predpulse/previews/main" : "predpulse";
+
+export function assertPublicationTarget(): void {
+  if (PREFIX === "predpulse" && branch !== "main") throw new Error("Production publication requires the main branch");
+}
 const MANIFEST_PATH = `${PREFIX}/latest.json`;
 const MAX_BYTES = 250_000;
 const SOURCE_FLOOR = 0.5;
 
 export interface PublishedSnapshot {
-  version: 1;
+  version: 1 | 2;
   generatedAt: string;
   sourceCounts: Record<ProcessedMarket["source"], number>;
   markets: ProcessedMarket[];
-  pulse: PulseIndex[];
+  pulse?: PulseIndex[]; // Archived v1 generations only.
+  indexProducts?: IndexProductsDigest;
   observations?: ObservationDigest;
   monitor?: EventMonitor;
   related?: RelatedDigest;
@@ -86,8 +95,10 @@ export function selectSnapshotMarkets(sources: AllSourcesResult, monitorItems: E
 export function validateSnapshot(value: unknown): PublishedSnapshot {
   if (!value || typeof value !== "object") throw new Error("Invalid snapshot");
   const s = value as PublishedSnapshot;
-  if (s.version !== 1 || !Number.isFinite(Date.parse(s.generatedAt)) ||
-      !Array.isArray(s.markets) || s.markets.length === 0 || !Array.isArray(s.pulse) || s.pulse.length === 0 ||
+  if (![1, 2].includes(s.version) || !Number.isFinite(Date.parse(s.generatedAt)) ||
+      !Array.isArray(s.markets) || s.markets.length === 0 ||
+      (s.version === 1 && (!Array.isArray(s.pulse) || s.pulse.length === 0)) ||
+      (s.version === 2 && !s.indexProducts) ||
       !s.sourceCounts || !Number.isFinite(s.sourceCounts.polymarket) ||
       !Number.isFinite(s.sourceCounts.kalshi) || !Number.isFinite(s.sourceCounts.manifold)) {
     throw new Error("Incomplete snapshot");
@@ -116,6 +127,7 @@ export function validateSnapshot(value: unknown): PublishedSnapshot {
   if (s.decisionDistribution) validateDecisionDistribution(s.decisionDistribution, s.generatedAt);
   if (s.eventOutlooks) validateEventOutlooks(s.eventOutlooks, s.generatedAt);
   if (s.research) validateResearch(s.research, s.generatedAt);
+  if (s.indexProducts) validateIndexProducts(s.indexProducts, s.generatedAt);
   return s;
 }
 
@@ -200,6 +212,7 @@ export async function loadPublishedSnapshot(): Promise<PublishedSnapshot | null>
 
 /** Publication is called by the scheduled GitHub runner, not a Vercel Function. */
 export async function publishSnapshot(sources: AllSourcesResult): Promise<PublishedSnapshot> {
+  assertPublicationTarget();
   const oldManifest = await readManifest();
   const previous = await loadPublishedSnapshot();
   const generatedAt = new Date().toISOString();
@@ -214,7 +227,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   try { eventOutlooks = buildEventOutlooks(sources.outlookEvents ?? [], generatedAt); }
   catch (error) { console.warn("[snapshot] event outlooks withheld", error); }
   const snapshot = validateSnapshot({
-    version: 1,
+    version: 2,
     generatedAt,
     sourceCounts: {
       polymarket: sources.polymarkets.length,
@@ -222,7 +235,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
       manifold: sources.manifoldMarkets.length,
     },
     markets: selectSnapshotMarkets(sources, monitor.items),
-    pulse: computePulse(coreMarkets),
+    indexProducts: buildBeliefShift(sources.outlookEvents ?? [], previous?.indexProducts ?? null, baseline?.indexProducts ?? null, generatedAt),
     observations: buildObservationDigest(coreMarkets, generatedAt),
     monitor,
     related: related.items.length ? related : undefined,
@@ -230,26 +243,32 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     research,
   });
   if (!isSafeSnapshot(snapshot, previous)) throw new Error("Core source unavailable or suspicious count collapse");
+  // Apply the established policy to non-index content first. Indices cannot cause
+  // extra trimming of another product; optional index history uses remaining space.
+  const baseBudget = MAX_BYTES;
+  const baseBytes = () => Buffer.byteLength(JSON.stringify({ ...snapshot, indexProducts: undefined }));
   let payload = JSON.stringify(snapshot);
   // Related markets are supplemental. Preserve core publication near the byte cap.
-  while (Buffer.byteLength(payload) > MAX_BYTES && snapshot.related?.items.length) {
+  while (baseBytes() > baseBudget && snapshot.related?.items.length) {
     snapshot.related.items.pop();
     if (snapshot.related.items.length === 0) delete snapshot.related;
     payload = JSON.stringify(snapshot);
   }
-  if (Buffer.byteLength(payload) > MAX_BYTES && snapshot.eventOutlooks) {
+  if (baseBytes() > baseBudget && snapshot.eventOutlooks) {
     snapshot.eventOutlooks = null;
     payload = JSON.stringify(snapshot);
   }
   // Preserve the evidence cohort; trim supplemental explorer rows before failing.
   const protectedIds = new Set(monitor.items.map((m) => `${m.source}:${m.marketId}`));
-  while (Buffer.byteLength(payload) > MAX_BYTES) {
+  while (baseBytes() > baseBudget) {
     const index = snapshot.markets.findLastIndex((m) => !protectedIds.has(`${m.source}:${m.id}`) &&
       snapshot.markets.filter((other) => other.source === m.source).length > 1);
     if (index < 0) break;
     snapshot.markets.splice(index, 1);
     payload = JSON.stringify(snapshot);
   }
+  snapshot.indexProducts = fitIndexDigest(snapshot.indexProducts!, Math.min(INDEX_MAX_BYTES, MAX_BYTES - baseBytes() - 20));
+  payload = JSON.stringify(snapshot);
   if (Buffer.byteLength(payload) > MAX_BYTES) throw new Error(`Snapshot exceeds ${MAX_BYTES} bytes`);
 
   // The generation is immutable; the short-lived manifest is the only mutable pointer.

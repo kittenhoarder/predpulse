@@ -1,11 +1,13 @@
 import { fetchAllSources } from "../lib/get-markets";
-import { loadPublishedSnapshot, publishSnapshot } from "../lib/snapshot";
+import { assertPublicationTarget, loadPublishedSnapshot, publishSnapshot } from "../lib/snapshot";
 
 // GitHub Actions holds the write credential. Vercel only reads published data.
 async function main(): Promise<void> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     throw new Error("Missing PREDPULSE_BLOB_READ_WRITE_TOKEN GitHub Actions secret");
   }
+
+  assertPublicationTarget();
 
   // A second schedule is a fallback, not a reason to fetch and write twice an hour.
   // Explicit manual dispatches always publish.
@@ -25,6 +27,8 @@ async function main(): Promise<void> {
   console.info("[publisher] published", {
     generatedAt: snapshot.generatedAt,
     selectedMarkets: snapshot.markets.length,
+    indices: snapshot.indexProducts?.products.map((p) => ({ category: p.category, state: p.state, coverage: p.coverage, headline: p.headline })),
+    indexBytes: snapshot.indexProducts ? Buffer.byteLength(JSON.stringify(snapshot.indexProducts)) : 0,
     sourceCounts: snapshot.sourceCounts,
     eventOutlooks: snapshot.eventOutlooks?.items.map((item) => ({
       title: item.title, topic: item.topic, displayedContracts: item.contracts.length,

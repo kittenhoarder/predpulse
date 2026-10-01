@@ -5,7 +5,7 @@ import { ThemeToggle } from "./ThemeToggle";
 export default function HeaderBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur-sm">
-      <div className="mx-auto flex h-12 max-w-screen-2xl items-center gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex min-h-12 max-w-screen-2xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1 sm:px-6">
         <Link href="/" className="flex items-center gap-2" aria-label="Predpulse home">
           <PulseLogo size="sm" />
           <span className="text-sm font-semibold tracking-tight">Predpulse</span>
