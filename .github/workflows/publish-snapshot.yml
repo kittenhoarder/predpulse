@@ -17,6 +17,9 @@ on:
       - feat/spec-006-durable-evidence
       - feat/spec-007-belief-shift
       - fix/snapshot-manifest-etag
+      - feat/spec-008-outcome-benchmarks
+      - feat/spec-009-market-attention
+      - fix/indices-main-integration
 
 permissions:
   contents: read
