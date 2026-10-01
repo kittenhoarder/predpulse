@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { SITE_URL, SITE_DESCRIPTION, jsonLd } from "@/lib/seo";
 import HeaderBar from "@/components/HeaderBar";
 import HeroSection from "@/components/HeroSection";
 import HomeDashboard from "@/components/HomeDashboard";
@@ -12,13 +14,13 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: jsonLd({
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "Predpulse",
-            url: process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz",
+            url: SITE_URL,
             description:
-              "Hourly observations of selected prediction market changes across Polymarket, Kalshi and Manifold.",
+              SITE_DESCRIPTION,
           }),
         }}
       />
@@ -29,6 +31,11 @@ export default function HomePage() {
       {/* Page content */}
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 pb-6 flex flex-col">
         <HomeDashboard />
+        <section className="mt-6 border-t border-border pt-5 text-sm text-muted-foreground" aria-label="About Predpulse">
+          <h2 className="font-medium text-foreground">Prediction markets, measured</h2>
+          <p className="mt-2 max-w-3xl leading-relaxed">Explore Belief Shift indices, Fed policy balance and a Market Attention map. Hourly snapshots bring changing expectations and trading activity into view, with the captured evidence behind each measure.</p>
+          <Link href="/methodology" prefetch={false} className="mt-3 inline-flex min-h-11 items-center text-primary hover:underline">How the measures work →</Link>
+        </section>
       </main>
 
       {/* Footer */}

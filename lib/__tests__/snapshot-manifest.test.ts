@@ -46,14 +46,14 @@ describe("conditional manifest publication",()=>{
   it("recovers a changed tag once without acquiring or uploading another generation",async()=>{
     const publisher=await setup(),network=vi.spyOn(globalThis,"fetch");state.mode="tag";const next=await publisher.publishSnapshot(sources);
     expect(next.generatedAt).toBe("2026-10-02T12:00:00.000Z");expect(state.heads).toBe(1);expect(state.puts).toBe(3);expect(state.gets).toBe(6);expect(network).not.toHaveBeenCalled();
-    expect([...state.blobs.keys()].filter(x=>x.includes("generations/"))).toHaveLength(2);expect(await publisher.loadPublishedSnapshot()).toEqual(next);
+    expect(Array.from(state.blobs.keys()).filter(x=>x.includes("generations/"))).toHaveLength(2);expect(await publisher.loadPublishedSnapshot()).toEqual(next);
   });
   it("retains a competing committed capture without overwriting its pointer or archive",async()=>{
     const publisher=await setup();state.mode="winner";const log=vi.spyOn(console,"info").mockImplementation(()=>{});const next=await publisher.publishSnapshot(sources);
-    const pointer=JSON.parse([...state.blobs.entries()].find(([key])=>key.endsWith("latest.json"))![1].text);expect(pointer.currentUrl).toContain("winner.json");expect(state.puts).toBe(2);expect(state.heads).toBe(1);expect(log).toHaveBeenCalledWith(expect.stringContaining("another publication"),expect.anything());expect(await publisher.loadPublishedSnapshot()).toEqual(next);
+    const pointer=JSON.parse(Array.from(state.blobs.entries()).find(([key])=>key.endsWith("latest.json"))![1].text);expect(pointer.currentUrl).toContain("winner.json");expect(state.puts).toBe(2);expect(state.heads).toBe(1);expect(log).toHaveBeenCalledWith(expect.stringContaining("another publication"),expect.anything());expect(await publisher.loadPublishedSnapshot()).toEqual(next);
   });
   it.each(["repeat","head_mismatch","other"] as const)("fails closed for %s instead of removing the conditional guard",async(mode)=>{
-    const publisher=await setup();const old=[...state.blobs.entries()].find(([key])=>key.endsWith("latest.json"))![1].text;state.mode=mode;
-    await expect(publisher.publishSnapshot(sources)).rejects.toThrow();expect([...state.blobs.entries()].find(([key])=>key.endsWith("latest.json"))![1].text).toBe(old);expect(state.puts).toBeLessThanOrEqual(3);expect(state.heads).toBe(mode==="other"?0:1);
+    const publisher=await setup();const old=Array.from(state.blobs.entries()).find(([key])=>key.endsWith("latest.json"))![1].text;state.mode=mode;
+    await expect(publisher.publishSnapshot(sources)).rejects.toThrow();expect(Array.from(state.blobs.entries()).find(([key])=>key.endsWith("latest.json"))![1].text).toBe(old);expect(state.puts).toBeLessThanOrEqual(3);expect(state.heads).toBe(mode==="other"?0:1);
   });
 });

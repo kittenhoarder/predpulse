@@ -86,7 +86,7 @@ describe("scheduled immutable capture", () => {
     const restarted=await import("../snapshot"),second=await restarted.publishSnapshot({...sources,outlookEvents:[input("8000","sports")]});
     expect(gets).toHaveBeenCalledTimes(5);expect(puts).toHaveBeenCalledTimes(2);expect(network).not.toHaveBeenCalled();
     expect(second.indexProducts!.marketAttention!.categories[0].share).toBe(1);expect(second.indexProducts!.marketAttention!.categories[3].count).toBe(0);
-    expect(await restarted.loadPublishedSnapshot()).toEqual(second);expect([...storage.keys()].every(path=>path.startsWith("predpulse/previews/spec-09-attention/"))).toBe(true);
+    expect(await restarted.loadPublishedSnapshot()).toEqual(second);expect(Array.from(storage.keys()).every(path=>path.startsWith("predpulse/previews/spec-09-attention/"))).toBe(true);
   });
 
   it("fails closed before any storage operation when production publication has no main branch identity", async () => {

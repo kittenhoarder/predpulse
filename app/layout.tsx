@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_URL, SITE_DESCRIPTION, SITE_ROBOTS, pageMetadata } from "@/lib/seo";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -9,24 +10,10 @@ import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://predpulse.xyz"),
-  alternates: { canonical: "/" },
-  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
+  ...pageMetadata("Predpulse | Prediction Market Indices & Intelligence", SITE_DESCRIPTION, "/"),
+  metadataBase: new URL(SITE_URL),
+  robots: SITE_ROBOTS,
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
-  title: "Predpulse — Prediction Market Intelligence",
-  description:
-    "Hourly prediction market observations across Polymarket, Kalshi and Manifold, with visual indices of changes in market expectations.",
-  openGraph: {
-    title: "Predpulse — Prediction Market Intelligence",
-    description: "Prediction market observations and visual Belief Shift indices.",
-    type: "website",
-    url: "/",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Predpulse — Prediction Market Intelligence",
-    description: "Prediction market observations and visual Belief Shift indices.",
-  },
 };
 
 export default function RootLayout({
