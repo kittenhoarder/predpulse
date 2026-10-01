@@ -2,12 +2,13 @@ import { get, put } from "@vercel/blob";
 import type { ProcessedMarket, PulseIndex } from "./types";
 import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
-import { buildBeliefShift, fitIndexDigest, validateIndexProducts } from "./belief-shift";
+import { fitIndexDigest, validateIndexProducts } from "./belief-shift";
+import { buildIndexProducts } from "./attention-index";
 import { INDEX_MAX_BYTES, type IndexProductsDigest } from "./index-products";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
 import { buildRelatedDigest, validateRelatedDigest, type RelatedDigest } from "./related-markets";
-import { validateDecisionDistribution, type DecisionDistribution } from "./decision-distribution";
+import { buildDecisionDistribution, validateDecisionDistribution, type DecisionDistribution } from "./decision-distribution";
 import { buildEventOutlooks, validateEventOutlooks, type EventOutlooks } from "./event-outlooks";
 
 import { buildResearch, validateResearch, archiveReferences, referenceAt, type ResearchDigest, type GenerationReference } from "./research";
@@ -19,7 +20,9 @@ const MONITOR_BRANCH = "feat/spec-03-event-monitor";
 const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
 const DECISION_BRANCH = "feat/spec-005-event-distribution";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === "feat/spec-007-belief-shift" ? "predpulse/previews/spec-07" :
+const PREFIX = branch === "feat/spec-009-market-attention" ? "predpulse/previews/spec-09-attention" :
+  branch === "feat/spec-008-outcome-benchmarks" ? "predpulse/previews/spec-08" :
+  branch === "feat/spec-007-belief-shift" ? "predpulse/previews/spec-07" :
   branch === "feat/spec-006-durable-evidence" ? "predpulse/previews/spec-06" :
   branch === DECISION_BRANCH ? "predpulse/previews/spec-05" :
   branch === RELATED_BRANCH ? "predpulse/previews/spec-04" :
@@ -224,7 +227,10 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
   const monitor = buildEventMonitor(coreMarkets, generatedAt);
   const related = buildRelatedDigest(coreMarkets, generatedAt);
   let eventOutlooks: EventOutlooks | null = null;
-  try { eventOutlooks = buildEventOutlooks(sources.outlookEvents ?? [], generatedAt); }
+  let decision: DecisionDistribution | null = null;
+  try { decision = buildDecisionDistribution(sources.outlookEvents ?? [], generatedAt); }
+  catch (error) { console.warn("[snapshot] decision distribution withheld", error); }
+  try { eventOutlooks = buildEventOutlooks(sources.outlookEvents ?? [], generatedAt, decision); }
   catch (error) { console.warn("[snapshot] event outlooks withheld", error); }
   const snapshot = validateSnapshot({
     version: 2,
@@ -235,7 +241,7 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
       manifold: sources.manifoldMarkets.length,
     },
     markets: selectSnapshotMarkets(sources, monitor.items),
-    indexProducts: buildBeliefShift(sources.outlookEvents ?? [], previous?.indexProducts ?? null, baseline?.indexProducts ?? null, generatedAt),
+    indexProducts: buildIndexProducts(sources.outlookEvents ?? [], previous?.indexProducts ?? null, baseline?.indexProducts ?? null, generatedAt, decision),
     observations: buildObservationDigest(coreMarkets, generatedAt),
     monitor,
     related: related.items.length ? related : undefined,

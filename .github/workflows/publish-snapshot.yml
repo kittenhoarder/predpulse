@@ -16,6 +16,8 @@ on:
       - feat/spec-005-event-distribution
       - feat/spec-006-durable-evidence
       - feat/spec-007-belief-shift
+      - feat/spec-008-outcome-benchmarks
+      - feat/spec-009-market-attention
 
 permissions:
   contents: read

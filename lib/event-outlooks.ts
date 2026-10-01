@@ -35,10 +35,10 @@ export function outlookTopic(title: string): OutlookTopic | null {
 }
 
 /** Uses only the existing publisher's Gamma sample. At most three topic-diverse cards. */
-export function buildEventOutlooks(events: GammaEvent[], asOf: string): EventOutlooks {
+export function buildEventOutlooks(events: GammaEvent[], asOf: string, suppliedDecision?: DecisionDistribution | null): EventOutlooks {
   const now = Date.parse(asOf);
   if (!Number.isFinite(now)) throw new Error("Invalid outlook timestamp");
-  const decision = buildDecisionDistribution(events, asOf);
+  const decision = suppliedDecision === undefined ? buildDecisionDistribution(events, asOf) : suppliedDecision;
   const candidates: EventOutlook[] = [];
   for (const event of events) {
     const topic = outlookTopic(event.title);

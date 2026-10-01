@@ -1,0 +1,79 @@
+{
+  "asOf": "2026-10-01T11:10:08.043Z",
+  "sourceCounts": {
+    "polymarket": 11944,
+    "kalshi": 4285,
+    "manifold": 540
+  },
+  "oldOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "newOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "publicationMs": {
+    "old": 759.236617,
+    "new": 592.6125609999999
+  },
+  "calculationMedianMs": {
+    "pulse": 26.095714000000044,
+    "index": 16.873139000000265
+  },
+  "savedIndexValidationMedianMs": 0.17887900000005175,
+  "pulse": {
+    "bytes": 14621,
+    "gzip": 3165
+  },
+  "coldIndex": {
+    "bytes": 10293,
+    "gzip": 3228
+  },
+  "warmedIndex": {
+    "bytes": 14572,
+    "gzip": 3744
+  },
+  "generation": {
+    "old": {
+      "bytes": 196291,
+      "gzip": 37031
+    },
+    "cold": {
+      "bytes": 191971,
+      "gzip": 36988
+    },
+    "warmed": {
+      "bytes": 196250,
+      "gzip": 37616
+    }
+  },
+  "bootstrap": {
+    "old": {
+      "bytes": 111725,
+      "gzip": 21344
+    },
+    "warmed": {
+      "bytes": 111632,
+      "gzip": 21803
+    }
+  },
+  "retainedNonIndexContent": true,
+  "initialJs": {
+    "/page": {
+      "raw": 524024,
+      "gzip": 154309
+    },
+    "/pulse/page": {
+      "raw": 408678,
+      "gzip": 122693
+    }
+  },
+  "stress": {
+    "events": 2000,
+    "calculationMs": 85.17181800000003,
+    "bytes": 10773
+  },
+  "noGrowthGatePassed": false,
+  "reviewException": "Shared index allocation 14600 bytes, below retired Pulse 14621. Filled bootstrap gzip +590 bytes vs Round 1, +459 vs Pulse. Pulse initial JS +2270 bytes vs Round 1; homepage initial JS -105150 bytes. No additional venue/storage operations or schedules."
+}

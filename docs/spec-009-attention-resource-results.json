@@ -1,0 +1,143 @@
+{
+  "asOf": "2026-10-01T11:10:08.043Z",
+  "sourceCounts": {
+    "polymarket": 11944,
+    "kalshi": 4285,
+    "manifold": 540
+  },
+  "oldOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "newOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "attention": {
+    "bytes": 3965,
+    "gzip": 1645
+  },
+  "coldIndex": {
+    "bytes": 14277,
+    "gzip": 4660
+  },
+  "filledIndex": {
+    "round2": {
+      "bytes": 14572,
+      "gzip": 3744
+    },
+    "attention": {
+      "bytes": 18556,
+      "gzip": 5211
+    }
+  },
+  "generation": {
+    "round2": {
+      "bytes": 196250,
+      "gzip": 37616
+    },
+    "attention": {
+      "bytes": 200234,
+      "gzip": 38997
+    }
+  },
+  "bootstrap": {
+    "round2": {
+      "bytes": 111632,
+      "gzip": 21803
+    },
+    "attention": {
+      "bytes": 115616,
+      "gzip": 23207
+    }
+  },
+  "calculationMs": {
+    "median": 1.2145000000000437,
+    "p95": 2.130542000000787
+  },
+  "validationMs": {
+    "median": 0.014901999999892723,
+    "p95": 0.016966000000138592
+  },
+  "retainedNonIndexContent": true,
+  "retainedExistingIndexEvidence": true,
+  "strictNoGrowthGatePassed": false,
+  "routeJavaScript": {
+    "/page": {
+      "bytes": 536775,
+      "gzip": 157260
+    },
+    "/pulse/page": {
+      "bytes": 421429,
+      "gzip": 125642
+    }
+  },
+  "fullCalculationMs": {
+    "round2": {
+      "median": 12.82859099999996,
+      "p95": 16.108396000000084
+    },
+    "attention": {
+      "median": 14.714463999999907,
+      "p95": 17.29787999999985
+    },
+    "increment": {
+      "median": 2.0303509999998823,
+      "p95": 4.383718999999928
+    }
+  },
+  "independentReconciliation": {
+    "passed": true,
+    "included": 500,
+    "excluded": 0,
+    "totalVolume": 33541309.084289003,
+    "categories": [
+      {
+        "key": "sports",
+        "count": 184,
+        "volume": 12208957.853603993,
+        "share": 0.3639976550385375
+      },
+      {
+        "key": "weather",
+        "count": 70,
+        "volume": 1665535.2570349996,
+        "share": 0.04965623890378055
+      },
+      {
+        "key": "crypto",
+        "count": 44,
+        "volume": 3282296.1965739997,
+        "share": 0.09785832116229033
+      },
+      {
+        "key": "economics",
+        "count": 38,
+        "volume": 3628848.9656770006,
+        "share": 0.10819043933430673
+      },
+      {
+        "key": "technology",
+        "count": 25,
+        "volume": 1945700.7209599998,
+        "share": 0.058009087125087205
+      },
+      {
+        "key": "politics",
+        "count": 124,
+        "volume": 10446504.655845007,
+        "share": 0.31145190635204595
+      },
+      {
+        "key": "other",
+        "count": 15,
+        "volume": 363465.434594,
+        "share": 0.010836352083951603
+      }
+    ]
+  },
+  "indexAllocationBytes": 20000,
+  "priorRoundsAllocationBytes": 14600,
+  "reviewExceptionRequired": true,
+  "timingCaveat": "Local frozen-input measurements; not billed Vercel CPU or quota guarantees."
+}

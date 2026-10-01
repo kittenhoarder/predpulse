@@ -4,8 +4,8 @@ import IndicesPageClient from "@/components/IndicesPageClient";
 export const metadata: Metadata = {
   alternates: { canonical: "/pulse" }, title: "Indices | Predpulse",
   description: "Visual measurements of prediction market repricing. Inspect saved quotes, comparable changes and the underlying sampled events.",
-  openGraph: { title: "Belief Shift | Predpulse", description: "Where sampled prediction market expectations moved over 24 hours." },
-  twitter: { card: "summary", title: "Belief Shift | Predpulse", description: "Visual prediction market repricing indices." },
+  openGraph: { title: "Indices | Predpulse", description: "Visual belief shifts and Fed outcome benchmarks from saved prediction market quotes." },
+  twitter: { card: "summary", title: "Indices | Predpulse", description: "Visual prediction market repricing indices." },
 };
 export default function IndicesPage() {
   return <div className="min-h-screen bg-background"><HeaderBar />
