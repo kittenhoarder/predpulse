@@ -15,6 +15,7 @@ on:
       - feat/spec-004-venue-comparisons
       - feat/spec-005-event-distribution
       - feat/spec-006-durable-evidence
+      - feat/spec-007-belief-shift
 
 permissions:
   contents: read

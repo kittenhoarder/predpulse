@@ -32,13 +32,25 @@ See [SPEC-005](docs/spec-005-event-outlooks.md) for selection and interpretation
 The feature publishes to an isolated Blob prefix on its PR branch. After merging,
 dispatch the publisher on `main` once to populate it in production.
 
+## Belief Shift indices (SPEC-007)
+
+Round 1 replaces experimental Pulse scores on the homepage and `/pulse` with
+saved, visual measurements of average absolute 24-hour YES midpoint changes.
+Economics and Politics use pinned weekly samples, strict quote comparisons and
+explicit coverage. Expand a tile for probability pairs, saved history and evidence.
+No additional venue acquisition, homepage request or storage operation is introduced.
+
+See [SPEC-007 and UAT notes](docs/spec-007-belief-shift.md). The preview branch writes
+only to `predpulse/previews/spec-07`. It starts warming and needs another capture
+roughly 24 hours later for genuine movement readings; old Pulse history is not reused.
+
 ## Hourly snapshot delivery (SPEC-01)
 
 The homepage requests `/api/bootstrap` once, then displays the latest saved market
-snapshot. The existing market and pulse API routes read that same snapshot. The
+snapshot. The market and index API routes read that same snapshot. The
 snapshot includes a **selected** research universe, not every market on each venue.
 Its generation time appears above the data. If no snapshot has been published,
-the read routes use their existing live-source fallback.
+index serving stays unavailable without a saved generation; existing market fallbacks remain unchanged.
 
 To activate and verify the publisher:
 
@@ -160,7 +172,8 @@ Manifold Markets API ──► lib/manifold.ts ────────┘      
                                                       ├── CLOB prices-history (sparkline, Polymarket only)
                                                       └── data-api trades (recent activity, Polymarket only)
 
-/pulse      ──► lib/pulse.ts ──► /api/pulse ──► PulseDashboard ──► PulseCard ×8
+GitHub publisher ──► lib/belief-shift.ts ──► immutable snapshot
+/pulse      ──► /api/indices ──► IndicesSection (saved Belief Shift)
 /market/[slug] ──► fetchEventBySlug ──► MarketDetailClient
 /api/og        ──► @vercel/og (edge) ──► OG share card
 ```
@@ -171,12 +184,12 @@ Manifold Markets API ──► lib/manifold.ts ────────┘      
 
 ```
 app/
-  page.tsx                  # SSR home — parallel getMarkets() + getAllMarkets() for Pulse
+  page.tsx                  # Saved homepage bootstrap and existing feature sections
   layout.tsx                # ThemeProvider, Inter font, OG metadata
   api/markets/route.ts      # GET ?sort=&category=&offset=&watchlist=&source=
-  api/pulse/route.ts        # GET — returns PulseApiResponse (8 category indices)
+  api/pulse/route.ts        # GET — HTTP 410 retirement response
   api/og/route.tsx          # Edge OG image (1200x630) for share cards
-  pulse/page.tsx            # Dedicated Pulse index page
+  pulse/page.tsx            # Indices catalogue and Belief Shift detail
   market/[slug]/
     page.tsx                # generateMetadata + SSR market detail
     MarketDetailClient.tsx  # Hero stats, Share button, ExpandedPanel
@@ -188,7 +201,9 @@ lib/
   kalshi.ts                 # fetchKalshiMarkets() — raw Kalshi → ProcessedMarket[]
   manifold.ts               # fetchManifoldMarkets() — raw Manifold v0 → ProcessedMarket[]
   get-markets.ts            # merge + filter + sort + paginate; GetMarketsOptions
-  pulse.ts                  # computeCategoryPulse() + snapshot history; returns PulseIndex[]
+  belief-shift.ts           # Pure publisher calculation, cohorts, identity validation and history
+  index-products.ts         # Versioned saved index contract and client-safe helpers
+  pulse.ts                  # Archived experimental engine; no active index serving imports
   watchlist.ts              # localStorage helpers: getWatchlist / toggleWatchlist
   hooks/
     useMarketSocket.ts      # WebSocket client for live Polymarket CLOB + Kalshi prices
@@ -200,8 +215,8 @@ components/
   HeatmapView.tsx           # Recharts Treemap: tile=liquidity, color=24h change
   SortTabs.tsx              # Sort tab bar (watchlist star, Movers, 1h Movers, Gainers…)
   CategoryFilter.tsx        # Icon+label pill filters, horizontal scroll on mobile
-  PulseDashboard.tsx        # SWR grid of 8 PulseCard components
-  PulseCard.tsx             # Single Pulse index: center-origin score bar + signal breakdown
+  IndicesSection.tsx        # Saved index tiles, local expansion and evidence export
+  BeliefShiftCharts.tsx     # SVG movement scale, before/after marks and bounded trend
   ThemeProvider/Toggle.tsx  # next-themes dark/light
   ui/                       # shadcn/ui primitives (badge, button, table…)
 ```
@@ -228,10 +243,11 @@ components/
 | `description`, `resolutionSource`, `endDate` | All sources | Manifold ProseMirror descriptions are dropped |
 | `competitive` | Computed | 0–1 market heat score |
 
-### `OperatorIndex` / `PulseIndex` (`lib/types.ts`)
+### Archived `OperatorIndex` / `PulseIndex` (`lib/types.ts`)
 
-Operator indices are computed by `lib/indices.ts` and exposed via `/api/indices`.  
-Legacy Pulse (`/api/pulse`) is now a compatibility alias to the `directional` family.
+The following formulas describe retired experiments. Active indices use the saved
+`IndexProductsDigest` in `lib/index-products.ts`; see [SPEC-007](docs/spec-007-belief-shift.md).
+Archived v1 generations remain readable. These category scores do not serve the new UI/API.
 
 Index families:
 - `directional`: polarity-adjusted directional pressure (forecast oriented)
@@ -279,18 +295,14 @@ Returns `MarketsApiResponse`: `{ markets, cachedAt, totalMarkets, fromCache }`.
 
 ### `GET /api/pulse`
 
-Returns legacy-compatible `PulseApiResponse`: `{ indices: PulseIndex[], computedAt }`.  
-Backed by the directional family in the new engine. Includes deprecation headers.
+Retired. Returns HTTP 410 with a successor link to `/api/indices`; performs no acquisition.
 
 ### `GET /api/indices`
 
-| Param | Default | Notes |
-|---|---|---|
-| `family` | `all` | `all` \| `directional` \| `liquidity` \| `divergence` \| `certainty` |
-| `horizon` | `24h` | `24h` \| `7d` |
-| `sourceScope` | `core` | `core` \| `all` \| `polymarket` \| `kalshi` \| `manifold` |
-
-Returns `IndicesApiResponse`: `{ indices, family, horizon, sourceScope, computedAt }`.
+Returns `{ version: 1, indexProducts, asOf, status }` from the saved snapshot.
+`indexProducts` is nullable for archived v1 generations. No saved snapshot returns
+HTTP 503; there is no live calculation fallback. `asOf` is the publication time.
+Legacy `family`, `horizon` or `sourceScope` parameters return HTTP 410.
 
 ### `GET /api/indices/backtest`
 

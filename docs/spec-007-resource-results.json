@@ -1,0 +1,72 @@
+{
+  "asOf": "2026-10-01T11:10:08.043Z",
+  "sourceCounts": {
+    "polymarket": 11944,
+    "kalshi": 4285,
+    "manifold": 540
+  },
+  "oldOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "newOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "publicationMs": {
+    "old": 559.675047,
+    "new": 495.9081699999999
+  },
+  "calculationMedianMs": {
+    "pulse": 24.9325089999993,
+    "index": 12.974380999999994
+  },
+  "savedIndexValidationMedianMs": 0.13111799999933282,
+  "pulse": {
+    "bytes": 14621,
+    "gzip": 3165
+  },
+  "coldIndex": {
+    "bytes": 7253,
+    "gzip": 2608
+  },
+  "warmedIndex": {
+    "bytes": 10974,
+    "gzip": 3035
+  },
+  "generation": {
+    "old": {
+      "bytes": 196291,
+      "gzip": 37031
+    },
+    "cold": {
+      "bytes": 188931,
+      "gzip": 36346
+    },
+    "warmed": {
+      "bytes": 192652,
+      "gzip": 36901
+    }
+  },
+  "bootstrap": {
+    "old": {
+      "bytes": 111725,
+      "gzip": 21344
+    },
+    "warmed": {
+      "bytes": 108034,
+      "gzip": 21213
+    }
+  },
+  "retainedNonIndexContent": true,
+  "browserInitialJavaScriptGzip": {
+    "/page": {
+      "before": 264008,
+      "after": 259459
+    },
+    "/pulse/page": {
+      "before": 216160,
+      "after": 120423
+    }
+  }
+}

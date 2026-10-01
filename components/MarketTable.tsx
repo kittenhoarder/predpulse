@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
+import dynamic from "next/dynamic";
 import { formatDistanceToNow } from "date-fns";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
 import { getWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
@@ -20,7 +21,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X, Droplets } from "lucide-react";
-import HeatmapView from "./HeatmapView";
+const HeatmapView = dynamic(() => import("./HeatmapView"), {
+  loading: () => <div role="status" className="py-8 text-sm text-muted-foreground">Loading heatmap…</div>,
+});
 
 const LEGACY_PAGE_SIZE = 100;
 const SERVER_PAGE_SIZE = 50;
