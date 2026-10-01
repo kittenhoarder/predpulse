@@ -1,3 +1,4 @@
+import { validateMarketAttention } from "./attention-evidence";
 import { validateOutcomeBenchmark } from "./policy-evidence";
 import { createHash } from "node:crypto";
 import type { GammaEvent, GammaMarket } from "./types";
@@ -184,6 +185,7 @@ export function validateIndexProducts(value: unknown, asOf: string): IndexProduc
     validateOutcomeBenchmark(d.outcomeBenchmark, d);
     d.outcomeBenchmark.members.forEach((id) => { if (id) referenced.add(id); });
   }
+  if (d.marketAttention) validateMarketAttention(d.marketAttention, asOf);
   if (referenced.size !== ids.size) return fail();
   return d;
 }

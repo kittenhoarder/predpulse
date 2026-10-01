@@ -3,7 +3,7 @@ import type { ProcessedMarket, PulseIndex } from "./types";
 import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
 import { fitIndexDigest, validateIndexProducts } from "./belief-shift";
-import { buildIndexProducts } from "./outcome-benchmark";
+import { buildIndexProducts } from "./attention-index";
 import { INDEX_MAX_BYTES, type IndexProductsDigest } from "./index-products";
 import { buildObservationDigest, type ObservationDigest } from "./observations";
 import { buildEventMonitor, type EventMonitor } from "./event-monitor";
@@ -20,7 +20,8 @@ const MONITOR_BRANCH = "feat/spec-03-event-monitor";
 const RELATED_BRANCH = "feat/spec-004-venue-comparisons";
 const DECISION_BRANCH = "feat/spec-005-event-distribution";
 const branch = process.env.GITHUB_REF_NAME ?? process.env.VERCEL_GIT_COMMIT_REF;
-const PREFIX = branch === "feat/spec-008-outcome-benchmarks" ? "predpulse/previews/spec-08" :
+const PREFIX = branch === "feat/spec-009-market-attention" ? "predpulse/previews/spec-09-attention" :
+  branch === "feat/spec-008-outcome-benchmarks" ? "predpulse/previews/spec-08" :
   branch === "feat/spec-007-belief-shift" ? "predpulse/previews/spec-07" :
   branch === "feat/spec-006-durable-evidence" ? "predpulse/previews/spec-06" :
   branch === DECISION_BRANCH ? "predpulse/previews/spec-05" :

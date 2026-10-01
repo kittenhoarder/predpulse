@@ -1,8 +1,9 @@
+import type { MarketAttention } from "./attention-model";
 /** Serializable index contract. This module is safe to import from the client. */
 export const BELIEF_METHOD = "belief-shift-v1";
 export const INDEX_MAPPING = "yes-first-binary-v1";
 export const INDEX_QUOTE_BASIS = "YES bid/ask midpoint";
-export const INDEX_MAX_BYTES = 14_600;
+export const INDEX_MAX_BYTES = 20_000;
 export const BELIEF_CATEGORIES = { economics: "Economics", politics: "Politics", crypto: "Crypto", tech: "Tech" } as const;
 export type BeliefCategory = keyof typeof BELIEF_CATEGORIES;
 export type QuoteIssue = "missing" | "inactive" | "unsupported_outcome" | "invalid_identity" | "invalid_book" | "old_record" | "past_close";
@@ -30,6 +31,7 @@ export interface IndexProductsDigest {
   products: BeliefShiftProduct[]; observations: IndexObservation[];
   exclusions: Record<string, number>;
   outcomeBenchmark?: OutcomeBenchmark;
+  marketAttention?: MarketAttention;
 }
 export function indexSourceUrl(observation: IndexObservation): string {
   return `https://polymarket.com/event/${observation.eventSlug}`;
