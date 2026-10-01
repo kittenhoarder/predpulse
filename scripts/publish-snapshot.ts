@@ -24,6 +24,10 @@ async function main(): Promise<void> {
 
   const sources = await fetchAllSources({ fresh: true });
   const snapshot = await publishSnapshot(sources);
+  if (process.env.SNAPSHOT_VERIFY_CAS === "true") {
+    const next = await publishSnapshot(sources);
+    console.info("[publisher] conditional overwrite verified without reacquisition", { generatedAt: next.generatedAt });
+  }
   console.info("[publisher] published", {
     generatedAt: snapshot.generatedAt,
     selectedMarkets: snapshot.markets.length,

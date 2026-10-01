@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { BlobPreconditionFailedError, get, head, put } from "@vercel/blob";
 import type { ProcessedMarket, PulseIndex } from "./types";
 import type { AllSourcesResult } from "./get-markets";
 import { filterBySize } from "./get-markets";
@@ -155,8 +155,11 @@ function validBlobUrl(url: string): boolean {
   } catch { return false; }
 }
 
-async function readManifest(): Promise<Manifest | null> {
-  const response = await get(MANIFEST_PATH, { access: "private", useCache: false });
+async function readManifest(forWrite = false): Promise<Manifest | null> {
+  // Conditional writes need the stored representation's ETag, not a compressed delivery tag.
+  const response = await get(MANIFEST_PATH, { access: "private", useCache: false,
+    ...(forWrite ? { headers: { "Accept-Encoding": "identity" } } : {}),
+  });
   if (!response || response.statusCode !== 200) return null;
   if (response.blob.size > 180_000) throw new Error("Manifest too large");
   const raw = await new Response(response.stream).json();
@@ -213,7 +216,7 @@ export async function loadPublishedSnapshot(): Promise<PublishedSnapshot | null>
 /** Publication is called by the scheduled GitHub runner, not a Vercel Function. */
 export async function publishSnapshot(sources: AllSourcesResult): Promise<PublishedSnapshot> {
   assertPublicationTarget();
-  const oldManifest = await readManifest();
+  const oldManifest = await readManifest(true);
   const previous = await loadPublishedSnapshot();
   const generatedAt = new Date().toISOString();
   const at24h = new Date(Date.parse(generatedAt) - 24 * 3_600_000).toISOString();
@@ -282,11 +285,33 @@ export async function publishSnapshot(sources: AllSourcesResult): Promise<Publis
     generatedAt: snapshot.generatedAt,
     archive: archiveReferences(oldManifest?.archive ?? (oldManifest ? [{ generatedAt: oldManifest.generatedAt, url: oldManifest.currentUrl }] : []), { generatedAt: snapshot.generatedAt, url: generation.url }),
   };
-  await put(MANIFEST_PATH, JSON.stringify(manifest), {
-    access: "private", addRandomSuffix: false, allowOverwrite: true,
+  const commit = (next: Manifest, etag?: string) => put(MANIFEST_PATH, JSON.stringify(next), {
+    access: "private", addRandomSuffix: false, allowOverwrite: !!etag,
     contentType: "application/json", cacheControlMaxAge: 60,
-    ...(oldManifest ? { ifMatch: oldManifest.etag } : {}),
+    ...(etag ? { ifMatch: etag } : {}),
   });
+  try {
+    await commit(manifest, oldManifest?.etag);
+  } catch (error) {
+    if (!(error instanceof BlobPreconditionFailedError)) throw error;
+    // One bounded recovery. Reuse the acquisition and uploaded immutable generation.
+    const metadata = await head(MANIFEST_PATH);
+    const current = await readManifest(true);
+    if (!current || !current.etag || current.etag !== metadata.etag) throw error;
+    if (!oldManifest || current.currentUrl !== oldManifest.currentUrl || current.generatedAt !== oldManifest.generatedAt) {
+      const raw = await readJson(current.currentUrl, true);
+      if (!raw) throw error;
+      const winner = validateSnapshot(raw);
+      if (winner.generatedAt !== current.generatedAt) throw error;
+      console.info("[publisher] another publication committed; retaining its capture", { generatedAt: winner.generatedAt });
+      lastGood = winner;
+      return winner;
+    }
+    await commit({ ...manifest, previousUrl: current.currentUrl,
+      archive: archiveReferences(current.archive ?? [{ generatedAt: current.generatedAt, url: current.currentUrl }],
+        { generatedAt: snapshot.generatedAt, url: generation.url }),
+    }, current.etag);
+  }
   lastGood = snapshot;
   return snapshot;
 }

@@ -16,6 +16,7 @@ on:
       - feat/spec-005-event-distribution
       - feat/spec-006-durable-evidence
       - feat/spec-007-belief-shift
+      - fix/snapshot-manifest-etag
 
 permissions:
   contents: read
@@ -35,8 +36,14 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - name: Verify production manifest ETag representations (read-only diagnostic)
+        if: github.ref_name == 'fix/snapshot-manifest-etag'
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.PREDPULSE_BLOB_READ_WRITE_TOKEN }}
+        run: node --import tsx scripts/check-snapshot-manifest.ts
       - name: Acquire, validate and publish from the GitHub runner
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.PREDPULSE_BLOB_READ_WRITE_TOKEN }}
           INDEX_PERSISTENCE_ENABLED: "false"
+          SNAPSHOT_VERIFY_CAS: ${{ github.ref_name == 'fix/snapshot-manifest-etag' && 'true' || 'false' }}
         run: npm run publish:snapshot
