@@ -2,7 +2,7 @@
 export const BELIEF_METHOD = "belief-shift-v1";
 export const INDEX_MAPPING = "yes-first-binary-v1";
 export const INDEX_QUOTE_BASIS = "YES bid/ask midpoint";
-export const INDEX_MAX_BYTES = 14_600;
+export const INDEX_MAX_BYTES = 20_000;
 export const BELIEF_CATEGORIES = { economics: "Economics", politics: "Politics", crypto: "Crypto", tech: "Tech" } as const;
 export type BeliefCategory = keyof typeof BELIEF_CATEGORIES;
 export type QuoteIssue = "missing" | "inactive" | "unsupported_outcome" | "invalid_identity" | "invalid_book" | "old_record" | "past_close";
@@ -30,6 +30,7 @@ export interface IndexProductsDigest {
   products: BeliefShiftProduct[]; observations: IndexObservation[];
   exclusions: Record<string, number>;
   outcomeBenchmark?: OutcomeBenchmark;
+  thematicBasket?: ThematicBasket;
 }
 export function indexSourceUrl(observation: IndexObservation): string {
   return `https://polymarket.com/event/${observation.eventSlug}`;
@@ -53,4 +54,17 @@ export interface OutcomeBenchmark {
   normalized: number[] | null; prior: { headline: number; rawSum: number; shares: [number, number, number]; normalized: number[] } | null;
   change24h: number | null; comparisonIssue: "capturing_baseline" | "meeting_changed" | "identity_changed" | "invalid_prior" | null;
   expectedChangeBps: null; history: IndexHistoryPoint[];
+}
+
+export const THEME_METHOD = "equal-weight-thematic-basket-v1";
+export interface ThematicBasket {
+  id: "state-data-centre-moratoriums-2026"; type: "thematic-basket";
+  name: "State data-centre moratoriums"; unit: "index points";
+  methodology: typeof THEME_METHOD; adapter: "state-data-centre-moratoriums-2026-v1";
+  deadline: "2027-01-01T04:59:00Z"; basketVersion: string; members: string[];
+  components: { state: string; marketId: string; familyId: string; createdAt: string; weight: number;
+    issue: "missing" | "identity_changed" | "rules_changed" | "window_changed" | "quote_unavailable" | null }[];
+  state: "available" | "unavailable"; headline: number | null; priorLevel: number | null; change24h: number | null;
+  contributions: (number | null)[]; comparisonIssue: "capturing_baseline" | "basket_changed" | "incomplete_pairs" | null;
+  coverage: { expected: 6; usable: number; comparable: number }; history: IndexHistoryPoint[];
 }

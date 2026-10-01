@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { themeEvents, THEME_T0, THEME_T1 } from "./fixtures/theme-events";
 import { fedEvent } from "./fixtures/fed-event";
 import type { GammaEvent, ProcessedMarket } from "../types";
 
@@ -74,6 +75,19 @@ describe("scheduled immutable capture", () => {
     expect(await restarted.loadPublishedSnapshot()).toEqual(second);
     expect(storage.has("predpulse/latest.json")).toBe(false);
     expect(Array.from(storage.keys()).every(path=>path.startsWith("predpulse/previews/spec-08/"))).toBe(true);
+  });
+
+  it("persists the six-state basket and exact contributions across restart with unchanged operations",async()=>{
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN","test-token");vi.stubEnv("GITHUB_REF_NAME","feat/spec-009-thematic-baskets");
+    vi.useFakeTimers();vi.setSystemTime(new Date(THEME_T0));vi.resetModules();const network=vi.spyOn(globalThis,"fetch");
+    const sources={polymarkets:[market("polymarket")],kalshiMarkets:[market("kalshi")],manifoldMarkets:[],outlookEvents:themeEvents([.1,.4,.7,.3,.5,.6])};
+    const first=await(await import("../snapshot")).publishSnapshot(sources);expect(first.indexProducts!.thematicBasket!.coverage.usable).toBe(6);
+    expect(gets).toHaveBeenCalledTimes(3);expect(puts).toHaveBeenCalledTimes(2);gets.mockClear();puts.mockClear();vi.resetModules();vi.setSystemTime(new Date(THEME_T1));
+    const restarted=await import("../snapshot"),second=await restarted.publishSnapshot({...sources,outlookEvents:themeEvents(undefined,THEME_T1)});
+    expect(gets).toHaveBeenCalledTimes(5);expect(puts).toHaveBeenCalledTimes(2);expect(network).not.toHaveBeenCalled();
+    expect(second.indexProducts!.thematicBasket!.change24h).toBeCloseTo(10/3);expect(await restarted.loadPublishedSnapshot()).toEqual(second);
+    expect(second.indexProducts!.thematicBasket!.basketVersion).toBe(first.indexProducts!.thematicBasket!.basketVersion);
+    expect(Array.from(storage.keys()).every(path=>path.startsWith("predpulse/previews/spec-09/"))).toBe(true);
   });
 
   it("fails closed before any storage operation when production publication has no main branch identity", async () => {

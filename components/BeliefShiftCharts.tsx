@@ -1,4 +1,4 @@
-import { observationMove, type BeliefShiftProduct, type IndexObservation } from "@/lib/index-products";
+import { observationMove, type BeliefShiftProduct, type ThematicBasket, type IndexObservation } from "@/lib/index-products";
 
 export function MovementScale({ value }: { value: number | null }) {
   return <div aria-label={value === null ? "24-hour movement not yet available" : `Average absolute movement ${value.toFixed(1)} percentage points`}>
@@ -17,7 +17,7 @@ export function ProbabilityPair({ row, compact = false }: { row: IndexObservatio
   const move = observationMove(row);
   return <div className={compact ? "space-y-1" : "space-y-2"}>
     {!compact && <div className="flex items-start justify-between gap-3 text-xs">
-      <span className="min-w-0 leading-relaxed">{row.question}</span>
+      <span className="min-w-0 break-words leading-relaxed">{row.question}</span>
       <span className="shrink-0 font-mono text-primary">{move !== null ? `${move > 0 ? "+" : ""}${move.toFixed(1)} pp` : now !== undefined ? `${(now * 100).toFixed(1)}%` : "Unavailable"}</span>
     </div>}
     <svg viewBox="0 0 400 26" className="h-7 w-full" role="img"
@@ -32,16 +32,17 @@ export function ProbabilityPair({ row, compact = false }: { row: IndexObservatio
   </div>;
 }
 
-export function ShiftHistory({ product }: { product: BeliefShiftProduct }) {
+export function ShiftHistory({ product }: { product: BeliefShiftProduct | ThematicBasket }) {
   const points = product.history;
+  const basket = product.type === "thematic-basket";
   const valid = points.filter((p) => p.value !== null);
-  if (valid.length < 2) return <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">The trend appears as comparable hourly observations accumulate.</p>;
+  if (valid.length < 2) return <p className="rounded-xl bg-muted/40 p-4 text-xs text-muted-foreground">{basket ? "The trend appears as actual hourly basket captures accumulate." : "The trend appears as comparable hourly observations accumulate."}</p>;
   const start = Date.parse(points[0].at), end = Date.parse(points.at(-1)!.at);
-  const max = Math.max(10, ...valid.map((p) => p.value!));
+  const max = basket ? 100 : Math.max(10, ...valid.map((p) => p.value!));
   const x = (at: string) => 40 + (Date.parse(at) - start) / Math.max(1, end - start) * 510;
   const y = (value: number) => 116 - value / max * 100;
   return <div>
-    <svg viewBox="0 0 570 150" className="w-full" role="img" aria-label="Saved average 24-hour movement over time. Gaps mark unavailable or incompatible samples.">
+    <svg viewBox="0 0 570 150" className="w-full" role="img" aria-label={basket ? "Saved basket level in index points over time. Gaps mark unavailable or changed baskets." : "Saved average 24-hour movement over time. Gaps mark unavailable or incompatible samples."}>
       {[0, max / 2, max].map((v) => <g key={v}><line x1="40" x2="550" y1={y(v)} y2={y(v)} className="stroke-muted-foreground/15" /><text x="30" y={y(v) + 4} textAnchor="end" className="fill-muted-foreground text-[18px] sm:text-[10px]">{v.toFixed(0)}</text></g>)}
       {points.map((p, i) => {
         const prev = points[i - 1];
@@ -51,10 +52,10 @@ export function ShiftHistory({ product }: { product: BeliefShiftProduct }) {
       })}
       <text x="40" y="143" className="fill-muted-foreground text-[18px] sm:text-[10px]">{new Date(points[0].at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</text>
       <text x="550" y="143" textAnchor="end" className="fill-muted-foreground text-[18px] sm:text-[10px]">{new Date(points.at(-1)!.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</text>
-      <text x="40" y="13" className="fill-muted-foreground text-[18px] sm:text-[10px]">pp</text>
+      <text x="40" y="13" className="fill-muted-foreground text-[18px] sm:text-[10px]">{basket ? "points" : "pp"}</text>
     </svg>
     <details className="text-xs text-muted-foreground"><summary className="flex min-h-11 cursor-pointer items-center">View saved trend values</summary>
-      <ul className="space-y-1">{points.map((p) => <li key={p.at}>{new Date(p.at).toLocaleString()} · {p.value === null ? "Unavailable" : `${p.value.toFixed(2)} pp`}</li>)}</ul>
+      <ul className="space-y-1">{points.map((p) => <li key={p.at}>{new Date(p.at).toLocaleString()} · {p.value === null ? "Unavailable" : `${p.value.toFixed(2)} ${basket ? "index points" : "pp"}`}</li>)}</ul>
     </details>
   </div>;
 }

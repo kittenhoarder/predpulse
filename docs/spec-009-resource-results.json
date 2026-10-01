@@ -1,0 +1,89 @@
+{
+  "asOf": "2026-10-01T11:10:08.043Z",
+  "sourceCounts": {
+    "polymarket": 11944,
+    "kalshi": 4285,
+    "manifold": 540
+  },
+  "oldOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "newOps": {
+    "gets": 3,
+    "puts": 2
+  },
+  "publicationMs": {
+    "old": 539.983209,
+    "new": 524.2519379999999
+  },
+  "calculationMedianMs": {
+    "pulse": 27.605588000000353,
+    "index": 17.230055999999422
+  },
+  "savedIndexValidationMedianMs": 0.2761869999994815,
+  "pulse": {
+    "bytes": 14621,
+    "gzip": 3165
+  },
+  "coldIndex": {
+    "bytes": 15203,
+    "gzip": 4354
+  },
+  "warmedIndex": {
+    "bytes": 19996,
+    "gzip": 4998
+  },
+  "generation": {
+    "old": {
+      "bytes": 196291,
+      "gzip": 37031
+    },
+    "cold": {
+      "bytes": 196881,
+      "gzip": 38105
+    },
+    "warmed": {
+      "bytes": 201674,
+      "gzip": 38851
+    }
+  },
+  "bootstrap": {
+    "old": {
+      "bytes": 111725,
+      "gzip": 21344
+    },
+    "warmed": {
+      "bytes": 117056,
+      "gzip": 23029
+    }
+  },
+  "retainedNonIndexContent": true,
+  "stress": {
+    "events": 2000,
+    "calculationMs": 98.41401399999995,
+    "bytes": 15642,
+    "basketUsable": 6
+  },
+  "routeJavaScript": {
+    "/page": {
+      "bytes": 537273,
+      "gzip": 156787
+    },
+    "/pulse/page": {
+      "bytes": 421927,
+      "gzip": 125169
+    }
+  },
+  "round2": {
+    "indexBytes": 14572,
+    "generationGzip": 37616,
+    "bootstrapGzip": 21803,
+    "homepageJsGzip": 154309,
+    "indicesJsGzip": 122693
+  },
+  "indexAllocationBytes": 20000,
+  "strictNoGrowthGatePassed": false,
+  "reviewExceptionRequired": true,
+  "timingCaveat": "Local frozen-input measurements, not billed Vercel CPU or live quota guarantees."
+}

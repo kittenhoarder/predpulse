@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildIndexProducts } from "../outcome-benchmark";
+import { buildIndexProducts } from "../thematic-basket";
+import { themeEvents } from "./fixtures/theme-events";
 import { fedEvent, T0 } from "./fixtures/fed-event";
 import { NextRequest } from "next/server";
 type SavedFixture = { generatedAt: string; version?: number; indexProducts?: { asOf: string; products: unknown[] } };
@@ -11,13 +12,14 @@ afterEach(() => { state.snapshot = null; vi.restoreAllMocks(); });
 describe("saved-only index serving", () => {
   it("serves the saved generation time and digest without upstream acquisition", async () => {
     const network = vi.spyOn(globalThis, "fetch");
-    const digest = buildIndexProducts([fedEvent()], null, null, T0);
+    const digest = buildIndexProducts([fedEvent(),...themeEvents(undefined,T0)], null, null, T0);
     state.snapshot = { generatedAt: T0, indexProducts: digest };
     const response = await GET(new NextRequest("https://predpulse.xyz/api/indices"));
     const body = await response.json();
     expect(body.asOf).toBe(state.snapshot.generatedAt);
     expect(body.indexProducts).toEqual(digest);
     expect(body.indexProducts.outcomeBenchmark.state).toBe("available");
+    expect(body.indexProducts.thematicBasket.coverage.usable).toBe(6);
     expect(network).not.toHaveBeenCalled();
   });
   it("reports missing/archived evidence without computing a live fallback", async () => {

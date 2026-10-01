@@ -1,3 +1,4 @@
+import { validateThematicBasket } from "./theme-evidence";
 import { validateOutcomeBenchmark } from "./policy-evidence";
 import { createHash } from "node:crypto";
 import type { GammaEvent, GammaMarket } from "./types";
@@ -126,7 +127,7 @@ export function buildBeliefShift(events: GammaEvent[], previous: IndexProductsDi
 export function fitIndexDigest(digest: IndexProductsDigest, maxBytes = INDEX_MAX_BYTES): IndexProductsDigest {
   const d = structuredClone(digest);
   while (Buffer.byteLength(JSON.stringify(d)) > maxBytes) {
-    const product = [...d.products, ...(d.outcomeBenchmark ? [d.outcomeBenchmark] : [])].sort((a, b) => b.history.length - a.history.length).find((p) => p.history.length > 1);
+    const product = [...d.products, ...(d.outcomeBenchmark ? [d.outcomeBenchmark] : []), ...(d.thematicBasket ? [d.thematicBasket] : [])].sort((a, b) => b.history.length - a.history.length).find((p) => p.history.length > 1);
     if (!product) throw new Error("Index evidence exceeds replacement allocation");
     product.history.shift();
   }
@@ -183,6 +184,10 @@ export function validateIndexProducts(value: unknown, asOf: string): IndexProduc
   if (d.outcomeBenchmark) {
     validateOutcomeBenchmark(d.outcomeBenchmark, d);
     d.outcomeBenchmark.members.forEach((id) => { if (id) referenced.add(id); });
+  }
+  if (d.thematicBasket) {
+    validateThematicBasket(d.thematicBasket, d);
+    d.thematicBasket.members.forEach((id) => referenced.add(id));
   }
   if (referenced.size !== ids.size) return fail();
   return d;

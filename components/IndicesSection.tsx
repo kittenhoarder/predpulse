@@ -6,6 +6,7 @@ import { ArrowDownToLine, ArrowUpRight, ChevronRight, X } from "lucide-react";
 import { indexFreshness, indexSourceUrl, observationMove, type BeliefShiftProduct, type IndexProductsDigest } from "@/lib/index-products";
 import { MovementScale, ProbabilityPair, ShiftHistory } from "./BeliefShiftCharts";
 import { DirectionShares, OutcomeHistory, OutcomeSummary, PolicyBalance } from "./OutcomeBenchmarkCharts";
+import { BasketDetail, BasketSummary } from "./ThematicBasketCharts";
 import MetaNote from "./MetaNote";
 
 const reasons = { insufficient_events: "Awaiting eligible events", insufficient_quotes: "Quote coverage limited",
@@ -25,11 +26,13 @@ export default function IndicesSection({ digest, full = false, loading = false }
   const selected = digest?.products.find((p) => p.id === selectedId);
   const benchmark = digest?.outcomeBenchmark;
   const outcome = benchmark?.id === selectedId ? benchmark : null;
-  const active = selected ?? outcome;
+  const basket = digest?.thematicBasket;
+  const theme = basket?.id === selectedId ? basket : null;
+  const active = selected ?? outcome ?? theme;
   const [filter, setFilter] = useState("all");
   const freshness = digest ? indexFreshness(digest.asOf) : "stale";
   const stale = freshness === "stale";
-  const products = digest?.products.slice(0, full ? 4 : 3) ?? [];
+  const products = digest?.products.slice(0, full ? 4 : basket ? 1 : 3) ?? [];
   useEffect(() => {
     if (!full) return;
     const restore = (event?: PopStateEvent) => {
@@ -62,7 +65,7 @@ export default function IndicesSection({ digest, full = false, loading = false }
   const moves = ranked.filter((r) => observationMove(r) !== null).slice(0, 5);
   function downloadEvidence() {
     if (!digest || !active) return;
-    const blob = new Blob([JSON.stringify({ ...digest, products: selected ? [selected] : [], outcomeBenchmark: outcome ?? undefined, observations: rows, fullRulesEmbedded: false }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ ...digest, products: selected ? [selected] : [], outcomeBenchmark: outcome ?? undefined, thematicBasket: theme ?? undefined, observations: rows, fullRulesEmbedded: false }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob), link = document.createElement("a");
     link.href = url; link.download = `${active.id}-${digest.asOf.slice(0, 10)}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
@@ -77,6 +80,7 @@ export default function IndicesSection({ digest, full = false, loading = false }
           <p>The equal-weight average absolute change in YES midpoints, in percentage points. A 40% to 43% quote is a 3 pp move.</p>
           <p>One pinned contract per venue event, up to eight near-term events per category. At least five comparable events and 80% coverage are required. The sample is selected by activity, not representative of the whole venue.</p>
           <p>Fed policy balance normalizes a complete five-outcome meeting. Balance is Hike share minus Cut share, in percentage points. Hold remains visible. This is not a probability or an expected rate change.</p>
+          <p>Thematic Baskets use fixed equal weights across explicitly defined contracts. The level is an average of quotes in index points, not a probability of the theme happening.</p>
           <p>No bullish/bearish interpretation. Source-record updates are not timestamps of the last trade. Missing evidence is unavailable, not zero.</p>
         </MetaNote>
       </div>
@@ -86,9 +90,9 @@ export default function IndicesSection({ digest, full = false, loading = false }
     </div>}
     {loading && <div role="status" className="grid gap-3 sm:grid-cols-2">{[0, 1].map((n) => <div key={n} className="h-60 rounded-2xl border border-border bg-muted/30 motion-safe:animate-pulse" />)}<span className="sr-only">Loading saved indices</span></div>}
     {!loading && !products.length && <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground" role="status">Belief Shift begins with its first saved publication. No comparable index evidence is available in this generation.</div>}
-    {full && benchmark && <div className="flex flex-wrap gap-1" aria-label="Index types">{[["all", "All indices"], ["belief", "Belief Shift"], ["outcome", "Outcome Benchmarks"]].map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { choose(null); setFilter(value); }} className={`min-h-11 rounded-full px-4 text-xs ${filter === value ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}</div>}
-    <div className={`grid gap-3 sm:grid-cols-2 ${(products.length + (benchmark ? 1 : 0)) > 2 ? "xl:grid-cols-3" : ""}`}>
-      {(filter === "outcome" ? [] : products).map((p) => {
+    {full && benchmark && <div className="flex flex-wrap gap-1" aria-label="Index types">{[["all", "All indices"], ["belief", "Belief Shift"], ["outcome", "Outcome Benchmarks"], ["theme", "Thematic Baskets"]].map(([value, label]) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => { choose(null); setFilter(value); }} className={`min-h-11 rounded-full px-4 text-xs ${filter === value ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>{label}</button>)}</div>}
+    <div className={`grid gap-3 sm:grid-cols-2 ${(products.length + (benchmark ? 1 : 0) + (basket ? 1 : 0)) === 3 ? "xl:grid-cols-3" : ""}`}>
+      {(filter === "outcome" || filter === "theme" ? [] : products).map((p) => {
         const sample = p.members.map((id) => digest!.observations.find((r) => r.marketId === id)!).filter((r) => r.quote).slice(0, 3);
         return <button key={p.id} type="button" ref={(node) => { if (node) buttons.current.set(p.id, node); else buttons.current.delete(p.id); }}
           aria-expanded={p.id === selectedId} aria-controls={`detail-${p.id}`} onClick={() => choose(p.id === selectedId ? null : p.id)}
@@ -102,13 +106,15 @@ export default function IndicesSection({ digest, full = false, loading = false }
             {p.breadth !== null && <span>{Math.round(p.breadth * 100)}% moved ≥3 pp</span>}</div>
         </button>;
       })}
-      {benchmark && filter !== "belief" && <button type="button" ref={(node) => { if (node) buttons.current.set(benchmark.id, node); else buttons.current.delete(benchmark.id); }}
+      {benchmark && (filter === "all" || filter === "outcome") && <button type="button" ref={(node) => { if (node) buttons.current.set(benchmark.id, node); else buttons.current.delete(benchmark.id); }}
         aria-expanded={!!outcome} aria-controls={`detail-${benchmark.id}`} onClick={() => choose(outcome ? null : benchmark.id)}
         className={`group flex min-w-0 flex-col rounded-2xl border bg-card p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${outcome ? "border-primary/60" : "border-border hover:border-primary/40"}`}>
         <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{benchmark.name}</span><ChevronRight className={`h-4 w-4 text-muted-foreground ${outcome ? "rotate-90" : ""}`} /></div>
         <OutcomeSummary product={benchmark} />
       </button>}
+      {basket && digest && (filter === "all" || filter === "theme") && <button type="button" ref={(node)=>{if(node)buttons.current.set(basket.id,node);else buttons.current.delete(basket.id);}} aria-expanded={!!theme} aria-controls={`detail-${basket.id}`} onClick={()=>choose(theme ? null : basket.id)} className={`group flex min-w-0 flex-col rounded-2xl border bg-card p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${theme ? "border-primary/60" : "border-border hover:border-primary/40"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{basket.name}</span><ChevronRight className={`h-4 w-4 shrink-0 text-muted-foreground ${theme ? "rotate-90" : ""}`} /></div><BasketSummary product={basket} digest={digest} /></button>}
     </div>
+    {theme && digest && <div id={`detail-${theme.id}`} ref={detail} tabIndex={-1} role="region" aria-label="State data-centre moratoriums index detail" onKeyDown={(e)=>{if(e.key==="Escape"){e.stopPropagation();choose(null);}}} className="rounded-2xl border border-primary/25 bg-card p-5 outline-none sm:p-7"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-widest text-primary">Thematic Basket · six states</p><h3 className="mt-2 text-xl font-semibold tracking-tight">{theme.headline===null ? "Basket evidence incomplete" : `${theme.headline.toFixed(1)} index points`}</h3><p className="mt-1 text-xs text-muted-foreground">State data-centre moratoriums · by 31 Dec 2026 · {stale ? "Historical capture" : "Saved quotes"}</p></div><button type="button" onClick={()=>choose(null)} aria-label="Close index detail" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button></div><BasketDetail key={theme.id} product={theme} digest={digest} onDownload={downloadEvidence} />{!full&&<Link href={`/pulse?index=${theme.id}`} prefetch={false} className="ml-4 inline-flex min-h-11 items-center text-xs text-muted-foreground">Open index page<ArrowUpRight className="ml-1 h-3.5 w-3.5" /></Link>}</div>}
     {outcome && digest && <div id={`detail-${outcome.id}`} ref={detail} tabIndex={-1} role="region" aria-label="Fed policy balance index detail" onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); choose(null); } }} className="rounded-2xl border border-primary/25 bg-card p-5 outline-none sm:p-7">
       <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-widest text-primary">Outcome Benchmark · Fed</p><h3 className="mt-2 text-xl font-semibold tracking-tight">{outcome.meetingDate ? `Meeting ${outcome.meetingDate}` : "Awaiting a supported meeting"}</h3><p className="mt-1 text-xs text-muted-foreground">{stale ? "Historical capture" : "Saved quotes"} · {outcome.members.filter(Boolean).length}/5 identified outcomes</p></div>
         <button type="button" onClick={() => choose(null)} aria-label="Close index detail" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button></div>
