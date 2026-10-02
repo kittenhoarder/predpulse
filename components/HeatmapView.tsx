@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Treemap, ResponsiveContainer, Tooltip } from "recharts";
 import type { ProcessedMarket } from "@/lib/types";
 import { formatChange, marketTradeUrl } from "@/lib/format";
@@ -51,6 +51,7 @@ interface ContentProps {
   prob?: number;
   eventSlug?: string;
   source?: "polymarket" | "kalshi" | "manifold";
+  select?: (source: string, slug: string) => void;
 }
 
 function tileHref(source: string, eventSlug: string): string {
@@ -68,20 +69,13 @@ function CustomTile(props: ContentProps) {
   const fg = textColor(change);
   const showChange = height > 40 && width > 60;
   const showProb = height > 56 && width > 60;
-  const fontSize = Math.min(13, Math.max(9, width / 12));
+  const fontSize = 12;
 
-  const handleClick = () => {
-    if (!eventSlug) return;
-    const href = tileHref(source, eventSlug);
-    if (source === "polymarket") {
-      window.location.href = href;
-    } else {
-      window.open(href, "_blank", "noopener,noreferrer");
-    }
-  };
+  const handleClick = () => props.select?.(source, eventSlug);
+  const interactive = width >= 44 && height >= 44;
 
   return (
-    <g>
+    <g role={interactive ? "button" : undefined} tabIndex={interactive ? 0 : undefined} aria-label={interactive ? `${name}, ${prob.toFixed(1)}%, ${formatChange(change)}` : undefined} onKeyDown={(event) => { if (interactive && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); handleClick(); } }}>
       <rect
         x={x + 1}
         y={y + 1}
@@ -90,32 +84,23 @@ function CustomTile(props: ContentProps) {
         fill={bg}
         rx={4}
         style={{ cursor: "pointer" }}
-        onClick={handleClick}
+        onClick={interactive ? handleClick : undefined}
       />
       {width > 40 && height > 28 && (
         <foreignObject x={x + 4} y={y + 4} width={width - 8} height={height - 8}>
           <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              height: "100%",
-              overflow: "hidden",
-              color: fg,
-              cursor: "pointer",
-            }}
-            onClick={handleClick}
+            style={{ pointerEvents: "none", display: "flex", flexDirection: "column", justifyContent: "center", height: "100%", overflow: "hidden", color: fg }}
           >
             <div style={{ fontSize, fontWeight: 600, lineHeight: 1.2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
               {name}
             </div>
             {showProb && (
-              <div style={{ fontSize: fontSize - 1, opacity: 0.9, marginTop: 2 }}>
+              <div style={{ fontSize, opacity: 0.9, marginTop: 2 }}>
                 {prob.toFixed(1)}%
               </div>
             )}
             {showChange && (
-              <div style={{ fontSize: fontSize - 1, opacity: 0.85, marginTop: 1 }}>
+              <div style={{ fontSize, opacity: 0.85, marginTop: 1 }}>
                 {formatChange(change)}
               </div>
             )}
@@ -142,6 +127,7 @@ function HeatmapTooltip({ active, payload }: { active?: boolean; payload?: { pay
 }
 
 export default function HeatmapView({ markets }: HeatmapViewProps) {
+  const [selected, setSelected] = useState<ProcessedMarket | null>(null);
   const data = useMemo<TreeNode[]>(
     () =>
       markets
@@ -172,7 +158,7 @@ export default function HeatmapView({ markets }: HeatmapViewProps) {
         <p className="text-xs text-muted-foreground">
           Tile size = liquidity · Color = 24h change
         </p>
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" />
           Losers
           <span className="w-3 h-3 rounded-sm bg-zinc-600 inline-block ml-1" />
@@ -181,16 +167,18 @@ export default function HeatmapView({ markets }: HeatmapViewProps) {
           Gainers
         </div>
       </div>
+      {selected && <div className="space-y-2 p-4 text-sm"><p className="font-medium">{selected.question}</p><p>{selected.currentPrice.toFixed(1)}% · {formatChange(selected.oneDayChange)} · <span className="capitalize">{selected.source}</span></p><a className="inline-flex min-h-11 items-center text-primary" href={tileHref(selected.source, selected.eventSlug)}>Open contract →</a></div>}
       <ResponsiveContainer width="100%" height={520}>
         <Treemap
           data={data}
           dataKey="size"
           aspectRatio={4 / 3}
-          content={<CustomTile />}
+          content={<CustomTile select={(source, slug) => setSelected(markets.find((market) => market.source === source && market.eventSlug === slug) ?? null)} />}
         >
           <Tooltip content={<HeatmapTooltip />} />
         </Treemap>
       </ResponsiveContainer>
+      <details className="p-4"><summary className="flex min-h-11 cursor-pointer items-center text-sm">Browse heatmap markets</summary><div className="space-y-3">{markets.map((market) => <button key={`${market.source}:${market.id}`} className="min-h-11 text-left text-xs" onClick={() => setSelected(market)}>{market.question} · {market.currentPrice.toFixed(1)}% · {formatChange(market.oneDayChange)}</button>)}</div></details>
     </div>
   );
 }

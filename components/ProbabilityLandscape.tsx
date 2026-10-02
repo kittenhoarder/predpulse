@@ -1,7 +1,15 @@
+"use client";
+import { useEffect, useRef } from "react";
 /** Decorative, illustrative probability curves. No market values are implied. */
 export default function ProbabilityLandscape() {
+  const root = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => root.current?.classList.toggle("landscape-paused", !entry.isIntersecting));
+    if (root.current) observer.observe(root.current);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <svg className="probability-landscape h-full w-full" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid slice" focusable="false" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <svg ref={root} className="probability-landscape h-full w-full" viewBox="0 0 960 560" preserveAspectRatio="xMidYMid slice" focusable="false" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="landscape-teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="landscape-teal-stop" stopOpacity="0.3" /><stop offset="1" className="landscape-teal-stop" stopOpacity="0" /></linearGradient>
         <linearGradient id="landscape-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="landscape-blue-stop" stopOpacity="0.15" /><stop offset="1" className="landscape-blue-stop" stopOpacity="0" /></linearGradient>

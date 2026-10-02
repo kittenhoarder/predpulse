@@ -1,17 +1,26 @@
 "use client";
-
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { createPortal } from "react-dom";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
-import { formatDistanceToNow } from "date-fns";
+import {
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
+  Settings2,
+  Droplets,
+} from "lucide-react";
 import type { MarketsApiResponse, SortMode } from "@/lib/types";
 import { getWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
-import { useMarketSocket } from "@/lib/hooks/useMarketSocket";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+import { useSheets } from "./SheetProvider";
+import { GuideButton } from "./GuidePanel";
+import Sheet from "./ui/sheet";
 import SortTabs from "./SortTabs";
 import CategoryFilter from "./CategoryFilter";
 import MarketRow from "./MarketRow";
-import { Button } from "@/components/ui/button";
+import MarketListItem from "./MarketListItem";
 import {
   Table,
   TableBody,
@@ -19,132 +28,80 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { RefreshCw, ChevronLeft, ChevronRight, LayoutGrid, List, Settings2, X, Droplets } from "lucide-react";
+} from "./ui/table";
 const HeatmapView = dynamic(() => import("./HeatmapView"), {
-  loading: () => <div role="status" className="py-8 text-sm text-muted-foreground">Loading heatmap…</div>,
+  loading: () => (
+    <p role="status" className="min-h-48 py-8 text-sm text-muted-foreground">
+      Loading heatmap…
+    </p>
+  ),
 });
-
-const LEGACY_PAGE_SIZE = 100;
-const SERVER_PAGE_SIZE = 50;
-const UI_PAGE_SIZE = 25;
-const MARKETS_DOUBLE_PAGE_ENABLED =
+type Source = "all" | "polymarket" | "kalshi" | "manifold";
+const DOUBLE =
   process.env.NEXT_PUBLIC_MARKETS_DOUBLE_PAGE_ENABLED !== "0" &&
   process.env.NEXT_PUBLIC_MARKETS_DOUBLE_PAGE_ENABLED !== "false";
-
-type SourceFilter = "all" | "polymarket" | "kalshi" | "manifold";
-
+const PAGE = DOUBLE ? 25 : 100;
 async function fetcher(url: string): Promise<MarketsApiResponse> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const response = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
 }
-
-function buildUrl(
-  sort: SortMode,
-  category: string,
-  offset: number,
-  limit: number,
-  watchlistIds: string[],
-  source: SourceFilter,
-  hideSmall: boolean,
-): string {
-  const params = new URLSearchParams({ sort, category, offset: String(offset), limit: String(limit) });
-  if (sort === "watchlist" && watchlistIds.length > 0) {
-    params.set("watchlist", watchlistIds.join(","));
-  }
-  if (source !== "all") {
-    params.set("source", source);
-  }
-  // Only append when off — keeps default (hide-small) URLs clean
-  if (!hideSmall) {
-    params.set("hideSmall", "false");
-  }
-  return `/api/markets?${params.toString()}`;
-}
-
-/** Compact 3-button source toggle rendered inline */
 function SourceToggle({
   value,
-  onChange,
+  change,
 }: {
-  value: SourceFilter;
-  onChange: (s: SourceFilter) => void;
+  value: Source;
+  change: (source: Source) => void;
 }) {
-  const options: { id: SourceFilter; label: string; color: string; activeColor: string }[] = [
-    { id: "all",        label: "·", color: "text-muted-foreground", activeColor: "bg-primary/10 text-primary border-primary/40" },
-    { id: "polymarket", label: "P", color: "text-cyan-400",  activeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40" },
-    { id: "kalshi",     label: "K", color: "text-amber-400", activeColor: "bg-amber-500/20 text-amber-300 border-amber-500/40" },
-    { id: "manifold",   label: "M", color: "text-rose-400",  activeColor: "bg-rose-500/20 text-rose-300 border-rose-500/40" },
-  ];
   return (
-    <div className="flex items-center rounded-md border border-border overflow-hidden shrink-0">
-      {options.map((opt) => (
+    <div
+      className="flex flex-wrap gap-3"
+      role="group"
+      aria-label="Venue filter"
+    >
+      {(["all", "polymarket", "kalshi", "manifold"] as const).map((source) => (
         <button
-          key={opt.id}
-          onClick={() => onChange(opt.id)}
-          aria-label={`Filter: ${opt.id}`}
-          aria-pressed={value === opt.id}
-          className={`h-7 px-2 text-[11px] font-bold transition-colors border-l first:border-l-0 border-border ${
-            value === opt.id ? opt.activeColor : `${opt.color} hover:text-foreground`
-          }`}
+          key={source}
+          onClick={() => change(source)}
+          aria-pressed={source === value}
+          className={`min-h-11 rounded-full px-3 text-xs capitalize ${source === value ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}
         >
-          {opt.label === "·" ? <span className="text-xs">All</span> : opt.label}
+          {source}
         </button>
       ))}
     </div>
   );
 }
-
-interface MarketTableProps {
-  initialSort?: SortMode;
-  initialCategory?: string;
-  initialData?: MarketsApiResponse;
-}
-
 export default function MarketTable({
   initialSort = "movers",
   initialCategory = "all",
   initialData,
-}: MarketTableProps) {
-  const [sort, setSort] = useState<SortMode>(initialSort);
-  const [category, setCategory] = useState(initialCategory);
-  const [source, setSource] = useState<SourceFilter>("all");
-  const [uiPage, setUiPage] = useState(0);
-  const [viewMode, setViewMode] = useState<"table" | "heatmap">("table");
-  const [cogOpen, setCogOpen] = useState(false);
-
+}: {
+  initialSort?: SortMode;
+  initialCategory?: string;
+  initialData?: MarketsApiResponse;
+}) {
+  const [sort, setSort] = useState<SortMode>(initialSort),
+    [category, setCategory] = useState(initialCategory),
+    [source, setSource] = useState<Source>("all"),
+    [page, setPage] = useState(0);
+  const [view, setView] = useState<"table" | "heatmap">("table"),
+    [hideSmall, setHideSmall] = useState(true),
+    [watchlist, setWatchlist] = useState<string[]>([]);
+  const sheets = useSheets(),
+    mobile = useMediaQuery("(max-width: 767px)");
+  const refreshWatchlist = useCallback(
+    () => setWatchlist(Array.from(getWatchlist())),
+    [],
+  );
   useEffect(() => {
-    if (!cogOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCogOpen(false);
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [cogOpen]);
-  // Watchlist IDs read from localStorage; refreshed when user stars/unstars
-  const [watchlistIds, setWatchlistIds] = useState<string[]>([]);
-  // Hide markets below per-source size thresholds (default on; persisted in localStorage)
-  const [hideSmall, setHideSmall] = useState(true);
-
-  useEffect(() => {
-    try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
+    refreshWatchlist();
     try {
       const stored = localStorage.getItem("hideSmall");
       if (stored !== null) setHideSmall(stored !== "false");
-    } catch { /* private browsing */ }
-  }, []);
-
-  const refreshWatchlist = useCallback(() => {
-    try { setWatchlistIds(Array.from(getWatchlist())); } catch { /* private browsing or full storage */ }
-  }, []);
-
-  useEffect(() => {
+    } catch {
+      /* Private storage */
+    }
     window.addEventListener(WATCHLIST_CHANGE, refreshWatchlist);
     window.addEventListener("storage", refreshWatchlist);
     return () => {
@@ -152,418 +109,288 @@ export default function MarketTable({
       window.removeEventListener("storage", refreshWatchlist);
     };
   }, [refreshWatchlist]);
-
-  const serverLimit = MARKETS_DOUBLE_PAGE_ENABLED ? SERVER_PAGE_SIZE : LEGACY_PAGE_SIZE;
-  const serverOffset = MARKETS_DOUBLE_PAGE_ENABLED
-    ? Math.floor(uiPage / 2) * SERVER_PAGE_SIZE
-    : uiPage * LEGACY_PAGE_SIZE;
-
-  const url = buildUrl(sort, category, serverOffset, serverLimit, watchlistIds, source, hideSmall);
-
-  const hasInitialData = uiPage === 0 && sort === initialSort && category === initialCategory &&
-    source === "all" && hideSmall && watchlistIds.length === 0 && Boolean(initialData);
-  const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
-    fallbackData:
-      hasInitialData
-        ? initialData
-        : undefined,
-    revalidateOnMount: !hasInitialData,
-    revalidateIfStale: !hasInitialData,
-    refreshInterval: 300_000,
-    revalidateOnFocus: false,
-    keepPreviousData: true,
+  const offset = DOUBLE ? Math.floor(page / 2) * 50 : page * 100;
+  const query = new URLSearchParams({
+    sort,
+    category,
+    offset: String(offset),
+    limit: DOUBLE ? "50" : "100",
   });
-
-  const fetchedMarkets = useMemo(() => data?.markets ?? [], [data?.markets]);
-  const markets = useMemo(() => {
-    if (!MARKETS_DOUBLE_PAGE_ENABLED) return fetchedMarkets;
-    const start = (uiPage % 2) * UI_PAGE_SIZE;
-    return fetchedMarkets.slice(start, start + UI_PAGE_SIZE);
-  }, [fetchedMarkets, uiPage]);
-
-  // Stable key strings — computed once per markets array identity change
-  const polyKey = useMemo(
-    () => markets.filter((m) => m.source === "polymarket").map((m) => m.clobTokenId).filter(Boolean).join(","),
-    [markets],
+  if (source !== "all") query.set("source", source);
+  if (!hideSmall) query.set("hideSmall", "false");
+  if (sort === "watchlist" && watchlist.length)
+    query.set("watchlist", watchlist.join(","));
+  const useInitial =
+    DOUBLE &&
+    sort === "movers" &&
+    category === "all" &&
+    source === "all" &&
+    hideSmall &&
+    offset === 0;
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
+    `/api/markets?${query}`,
+    fetcher,
+    {
+      fallbackData: useInitial ? initialData : undefined,
+      revalidateOnMount: !useInitial || !initialData,
+      revalidateIfStale: !useInitial || !initialData,
+      refreshInterval: 300_000,
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+    },
   );
-  const kalshiKey = useMemo(
-    () => markets.filter((m) => m.source === "kalshi").map((m) => m.id).filter(Boolean).join(","),
-    [markets],
+  const markets = useMemo(
+    () =>
+      sort === "watchlist" && !watchlist.length
+        ? []
+        : DOUBLE
+          ? (data?.markets ?? []).slice(
+              (page % 2) * PAGE,
+              ((page % 2) + 1) * PAGE,
+            )
+          : (data?.markets ?? []),
+    [data?.markets, page, sort, watchlist.length],
   );
-  const manifoldKey = useMemo(
-    () => markets.filter((m) => m.source === "manifold").map((m) => m.id).filter(Boolean).join(","),
-    [markets],
-  );
-
-  const tokenIds = useMemo(() => (polyKey ? polyKey.split(",") : []), [polyKey]);
-  const kalshiTickers = useMemo(() => (kalshiKey ? kalshiKey.split(",") : []), [kalshiKey]);
-  const manifoldIds = useMemo(() => (manifoldKey ? manifoldKey.split(",") : []), [manifoldKey]);
-
-  const { livePrices, status: wsStatus } = useMarketSocket(tokenIds, kalshiTickers, manifoldIds);
-
-  const handleSortChange = useCallback((newSort: SortMode) => {
-    setSort(newSort);
-    setUiPage(0);
-  }, []);
-
-  const handleCategoryChange = useCallback((newCat: string) => {
-    setCategory(newCat);
-    setUiPage(0);
-  }, []);
-
-  const handleSourceChange = useCallback((newSource: SourceFilter) => {
-    setSource(newSource);
-    setUiPage(0);
-  }, []);
-
-  const handleHideSmallToggle = useCallback(() => {
-    setHideSmall((prev) => {
-      const next = !prev;
-      try { localStorage.setItem("hideSmall", String(next)); } catch { /* private browsing */ }
-      return next;
+  const total =
+    sort === "watchlist" && !watchlist.length ? 0 : (data?.totalMarkets ?? 0);
+  const changeSort = (value: SortMode) => {
+    setSort(value);
+    setPage(0);
+  };
+  const changeCategory = (value: string) => {
+    setCategory(value);
+    setPage(0);
+  };
+  const changeSource = (value: Source) => {
+    setSource(value);
+    setPage(0);
+  };
+  const liquid = () => {
+    setHideSmall((value) => {
+      try {
+        localStorage.setItem("hideSmall", String(!value));
+      } catch {
+        /* Optional */
+      }
+      return !value;
     });
-    setUiPage(0);
-  }, []);
-
-  const totalMarkets = data?.totalMarkets ?? 0;
-  const sourceBreakdown = data?.sourceBreakdown;
-  const visiblePageSize = MARKETS_DOUBLE_PAGE_ENABLED ? UI_PAGE_SIZE : (data?.pageSize ?? LEGACY_PAGE_SIZE);
-  const hasMore = (uiPage + 1) * visiblePageSize < totalMarkets;
-  const hasPrev = uiPage > 0;
-  const displayStart = totalMarkets > 0 ? uiPage * visiblePageSize + 1 : 0;
-  const displayEnd = Math.min((uiPage + 1) * visiblePageSize, totalMarkets);
-
-  const fetchedAtText = data?.cachedAt
-    ? formatDistanceToNow(new Date(data.cachedAt), { addSuffix: true })
-    : null;
-
-  const emptyWatchlist = sort === "watchlist" && watchlistIds.length === 0;
-  const activeSourceCount = sourceBreakdown
-    ? [sourceBreakdown.polymarket, sourceBreakdown.kalshi, sourceBreakdown.manifold].filter((n) => n > 0).length
-    : 0;
-  const showPartialHint = source === "all" && !isLoading && !!sourceBreakdown && totalMarkets > 0 && activeSourceCount < 3;
-
+    setPage(0);
+  };
+  const viewControls = (
+    <div className="flex gap-3" role="group" aria-label="Market view">
+      {(["table", "heatmap"] as const).map((mode) => (
+        <button
+          key={mode}
+          onClick={() => setView(mode)}
+          aria-pressed={view === mode}
+          aria-label={mode === "table" ? "List view" : "Heatmap view"}
+          className={`control rounded-full px-3 ${view === mode ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+        >
+          {mode === "table" ? (
+            <List className="h-4 w-4" />
+          ) : (
+            <LayoutGrid className="h-4 w-4" />
+          )}
+        </button>
+      ))}
+    </div>
+  );
   return (
-    <div className="flex flex-col">
-      {/* Controls bar — full-viewport sticky strip, flush below the h-12 header */}
-      <div className="sticky top-12 z-10 bg-background/95 backdrop-blur-sm border-b border-border"
-           style={{ marginLeft: "calc(-50vw + 50%)", marginRight: "calc(-50vw + 50%)", paddingLeft: "max(1rem, calc(50vw - 50%))", paddingRight: "max(1rem, calc(50vw - 50%))" }}>
-        {/* Desktop: all controls in one scrollable row */}
-        <div className="hidden md:flex items-center h-11 gap-0 overflow-x-auto scrollbar-none max-w-screen-2xl mx-auto">
-          {/* Liquid filter — icon-only raindrop, tooltip explains it */}
-          <button
-            onClick={handleHideSmallToggle}
-            aria-label={hideSmall ? "Liquid markets only — click to show all" : "Showing all markets — click to filter to liquid only"}
-            aria-pressed={hideSmall}
-            title={hideSmall ? "Liquid markets only (volume > $1k, spread < 10¢) — click to show all" : "Show all markets — click to filter to liquid only"}
-            className={`h-7 w-7 flex items-center justify-center rounded-md border transition-all duration-150 shrink-0 ${
-              hideSmall
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground hover:border-primary/30"
-            }`}
-          >
-            <Droplets className="w-3.5 h-3.5" />
-          </button>
-          <div className="shrink-0 w-px h-4 bg-border mx-2" />
-          <SourceToggle value={source} onChange={handleSourceChange} />
-          <div className="shrink-0 w-px h-4 bg-border mx-2" />
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <div data-carousel className="min-w-0 flex-1 overflow-x-auto">
           <SortTabs
             active={sort}
-            onChange={handleSortChange}
-            watchlistCount={watchlistIds.length}
+            onChange={changeSort}
+            watchlistCount={watchlist.length}
           />
-          <div className="shrink-0 w-px h-4 bg-border mx-2" />
-          <CategoryFilter active={category} onChange={handleCategoryChange} />
-          <div className="ml-auto shrink-0 flex items-center gap-2 pl-3">
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span
-                className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${
-                  wsStatus === "open"
-                    ? "bg-emerald-500 animate-pulse"
-                    : wsStatus === "connecting"
-                      ? "bg-amber-400 animate-pulse"
-                      : "bg-muted-foreground/40"
-                }`}
-              />
-              <span className="whitespace-nowrap">
-                {wsStatus === "open" ? "Live" : wsStatus === "connecting" ? "Connecting…" : fetchedAtText ? `Updated ${fetchedAtText}` : "Polling"}
-              </span>
-            </span>
-            <div className="flex items-center rounded-md border border-border overflow-hidden">
-              <button
-                onClick={() => setViewMode("table")}
-                aria-label="Table view"
-                className={`h-7 px-2 flex items-center transition-colors ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("heatmap")}
-                aria-label="Heatmap view"
-                className={`h-7 px-2 flex items-center border-l border-border transition-colors ${viewMode === "heatmap" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <button
-              onClick={() => mutate()}
-              disabled={isValidating}
-              aria-label="Refresh"
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors disabled:opacity-40"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isValidating ? "animate-spin" : ""}`} />
-            </button>
-          </div>
         </div>
-
-        {/* Mobile: sort tabs + cog button */}
-        <div className="flex md:hidden items-center h-11 gap-0">
-          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            <SortTabs
-              active={sort}
-              onChange={handleSortChange}
-              watchlistCount={watchlistIds.length}
-            />
-          </div>
-          <div className="shrink-0 flex items-center gap-1.5 pl-2">
-            <span
-              className={`inline-block w-1.5 h-1.5 rounded-full ${
-                wsStatus === "open" ? "bg-emerald-500 animate-pulse" : wsStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-muted-foreground/40"
-              }`}
-            />
-            <button
-              onClick={() => setCogOpen(true)}
-              aria-label="Open settings"
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            >
-              <Settings2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
+        <button
+          className="control shrink-0 rounded-full md:hidden"
+          aria-label="Open market filters"
+          onClick={() => sheets.open({ type: "filters" })}
+        >
+          <Settings2 className="h-4 w-4" />
+        </button>
       </div>
-
-      {/* Mobile cog drawer — slide-up bottom sheet */}
-      {cogOpen && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-end md:hidden" onClick={() => setCogOpen(false)}>
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          {/* Sheet */}
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Filters and view settings"
-            className="relative w-full max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-border bg-background p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] space-y-5"
-            onClick={(e) => e.stopPropagation()}
+      <div className="hidden flex-wrap items-center justify-between gap-4 md:flex">
+        <div className="flex flex-wrap items-center gap-4">
+          <SourceToggle value={source} change={changeSource} />
+          <CategoryFilter active={category} onChange={changeCategory} />
+          <button
+            className={`control rounded-full ${hideSmall ? "text-primary" : "text-muted-foreground"}`}
+            aria-label="Liquid markets only"
+            aria-pressed={hideSmall}
+            onClick={liquid}
           >
-            {/* Handle + header */}
-            <div className="flex items-center justify-between">
-              <div className="w-8 h-1 rounded-full bg-border mx-auto absolute left-1/2 -translate-x-1/2 top-2.5" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filters &amp; View</span>
-              <button
-                onClick={() => setCogOpen(false)}
-                aria-label="Close filters"
-                className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Category filter */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Category</p>
-              <CategoryFilter active={category} onChange={handleCategoryChange} />
-            </div>
-
-            {/* Source filter */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">Source</p>
-              <SourceToggle value={source} onChange={handleSourceChange} />
-            </div>
-
-            {/* Market size filter */}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">Liquid markets only</p>
-                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Hide low-volume / low-liquidity markets</p>
-              </div>
-              <button
-                onClick={handleHideSmallToggle}
-                aria-pressed={hideSmall}
-                aria-label="Toggle liquid markets filter"
-                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none ${
-                  hideSmall ? "bg-primary" : "bg-muted"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-sm transition-transform ${
-                    hideSmall ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* View mode */}
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">View</p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setViewMode("table")}
-                  className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
-                    viewMode === "table"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <List className="w-3.5 h-3.5" /> List
-                </button>
-                <button
-                  onClick={() => setViewMode("heatmap")}
-                  className={`flex items-center gap-2 h-8 px-3 rounded-md border text-xs transition-colors ${
-                    viewMode === "heatmap"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" /> Heatmap
-                </button>
-              </div>
-            </div>
-
-            {/* Refresh */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { void mutate(); }}
-              disabled={isValidating}
-              className="gap-1.5 h-8 text-xs w-full"
-            >
-              <RefreshCw className={`w-3 h-3 ${isValidating ? "animate-spin" : ""}`} />
-              {isValidating ? "Fetching…" : "Refresh data"}
-            </Button>
-          </div>
-        </div>, document.body
-      )}
-
-      {/* Market count + error — slim row between controls and table */}
-      <div className="flex items-center justify-between pt-2 pb-1 px-0.5 min-h-[1.5rem]">
-        <p className="text-xs text-muted-foreground">
-          {emptyWatchlist ? (
-            "Star markets to build your watchlist"
-          ) : totalMarkets > 0 ? (
-            <>
-              {displayStart}–{displayEnd}{" "}
-              <span className="text-muted-foreground/60">of {totalMarkets.toLocaleString()}</span>
-            </>
-          ) : isLoading ? null : (
-            "No markets found"
-          )}
-        </p>
+            <Droplets className="h-4 w-4" />
+          </button>
+          <GuideButton id="markets" label="About market filters" />
+        </div>
+        <div className="flex gap-3">
+          {viewControls}
+          <button
+            className="control rounded-full"
+            aria-label="Refresh markets"
+            disabled={isValidating}
+            onClick={() => void mutate()}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isValidating ? "motion-safe:animate-spin" : ""}`}
+            />
+          </button>
+        </div>
       </div>
-
-      {showPartialHint && sourceBreakdown && (
-        <div className="mb-2 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
-          Partial source coverage (cold start): P {sourceBreakdown.polymarket} · K {sourceBreakdown.kalshi} · M {sourceBreakdown.manifold}
+      <Sheet
+        open={sheets.sheet?.type === "filters"}
+        onClose={sheets.close}
+        title="Market filters"
+        onFocusReturn={sheets.focusReturn}
+      >
+        <div className="space-y-6">
+          <section>
+            <h3 className="mb-3 text-sm font-medium">Category</h3>
+            <CategoryFilter active={category} onChange={changeCategory} />
+          </section>
+          <section>
+            <h3 className="mb-3 text-sm font-medium">Venue</h3>
+            <SourceToggle value={source} change={changeSource} />
+          </section>
+          <div className="flex items-center justify-between gap-4">
+            <button
+              onClick={liquid}
+              aria-pressed={hideSmall}
+              className={`min-h-11 rounded-full px-4 text-sm ${hideSmall ? "bg-primary/10 text-primary" : "bg-muted"}`}
+            >
+              Liquid markets only {hideSmall ? "✓" : ""}
+            </button>
+            <GuideButton id="markets" label="About market filters" />
+          </div>
+          <section>
+            <h3 className="mb-3 text-sm font-medium">View</h3>
+            {viewControls}
+          </section>
+          <button
+            className="min-h-11 w-full rounded-xl border border-border text-sm"
+            disabled={isValidating}
+            onClick={() => void mutate()}
+          >
+            Refresh markets
+          </button>
         </div>
-      )}
-
-      {/* Error state */}
+      </Sheet>
+      <p className="text-xs text-muted-foreground">
+        {total
+          ? `${page * PAGE + 1}–${Math.min((page + 1) * PAGE, total)} of ${total.toLocaleString()}`
+          : sort === "watchlist"
+            ? "Star markets to build your saved list"
+            : isLoading
+              ? "Loading markets…"
+              : "No markets found"}
+      </p>
       {error && (
-        <div className="mb-2 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-sm">
-          Failed to load markets. Try refreshing.
-        </div>
+        <p
+          role="status"
+          className="rounded-xl border border-destructive/30 p-4 text-sm text-destructive"
+        >
+          Market snapshot unavailable. Try refreshing.
+        </p>
       )}
-
-      {/* Heatmap view */}
-      {viewMode === "heatmap" && !isLoading && (
+      {view === "heatmap" ? (
         <HeatmapView markets={markets} />
-      )}
-
-      {/* Table */}
-      {viewMode === "table" && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          {/* table-fixed prevents columns reflowing when expansion rows are inserted */}
+      ) : mobile ? (
+        <div
+          className="overflow-hidden rounded-2xl border border-border"
+          data-market-rows
+        >
+          {isLoading && !markets.length
+            ? [0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="h-28 bg-muted/30 motion-safe:animate-pulse"
+                />
+              ))
+            : markets.map((market) => (
+                <MarketListItem
+                  key={`${market.source}:${market.id}`}
+                  market={market}
+                />
+              ))}
+        </div>
+      ) : (
+        <div
+          className="overflow-hidden rounded-2xl border border-border"
+          data-market-rows
+        >
           <Table className="table-fixed min-w-[640px]">
-            <colgroup><col className="w-12" /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /><col className="w-24" /><col className="w-16" /></colgroup>
+            <colgroup>
+              <col className="w-14" />
+              <col />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-44" />
+            </colgroup>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-xs">#</TableHead>
-                <TableHead className="text-xs">Market</TableHead>
-                <TableHead className="text-xs text-right whitespace-nowrap">Probability</TableHead>
-                <TableHead className="text-xs text-right whitespace-nowrap">24h Change</TableHead>
-                <TableHead className="text-xs text-right whitespace-nowrap">24h Volume</TableHead>
-                <TableHead className="text-xs text-right">Liquidity / OI</TableHead>
-                <TableHead />
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Market</TableHead>
+                <TableHead className="text-right">Odds</TableHead>
+                <TableHead className="text-right">24h</TableHead>
+                <TableHead className="text-right">Volume</TableHead>
+                <TableHead className="text-right">Liquidity / OI</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading &&
-                Array.from({ length: 10 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j} className="py-3">
-                        <div className="h-4 bg-muted rounded animate-pulse" />
+              {isLoading && !markets.length
+                ? [0, 1, 2, 3].map((i) => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={7}>
+                        <div className="h-16 rounded-lg bg-muted/30 motion-safe:animate-pulse" />
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-
-              {!isLoading &&
-                markets.map((market, idx) => (
-                  <MarketRow
-                    key={market.id}
-                    market={market}
-                    rank={displayStart + idx}
-                    onWatchlistChange={refreshWatchlist}
-                    livePrice={livePrices.get(
-                      market.source === "kalshi" ? market.id : market.clobTokenId
-                    )}
-                  />
-                ))}
-
-              {!isLoading && markets.length === 0 && !error && (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="py-12 text-center text-muted-foreground text-sm font-normal"
-                  >
-                    {emptyWatchlist
-                      ? "No saved markets yet — star a market to add it to your watchlist."
-                      : "No markets found for this filter."}
-                  </TableCell>
-                </TableRow>
-              )}
+                    </TableRow>
+                  ))
+                : markets.map((market, i) => (
+                    <MarketRow
+                      key={`${market.source}:${market.id}`}
+                      market={market}
+                      rank={page * PAGE + i + 1}
+                      onWatchlistChange={refreshWatchlist}
+                    />
+                  ))}
             </TableBody>
           </Table>
         </div>
       )}
-
-      {/* Pagination — only in table view when there are multiple pages */}
-      {viewMode === "table" && (hasPrev || hasMore) && (
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            {hasPrev && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setUiPage(Math.max(0, uiPage - 1))}
-                className="gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" /> Previous
-              </Button>
-            )}
-          </div>
-          <div>
-            {hasMore && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setUiPage(uiPage + 1)}
-                className="gap-1"
-              >
-                Next <ChevronRight className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
+      {!isLoading && !markets.length && (
+        <p className="py-5 text-sm text-muted-foreground">
+          {sort === "watchlist"
+            ? "No saved markets match this snapshot and filter."
+            : "No markets match this filter."}
+        </p>
+      )}
+      {view === "table" && (page > 0 || (page + 1) * PAGE < total) && (
+        <div className="flex justify-between gap-4">
+          <button
+            className="control rounded-full px-3 text-xs disabled:opacity-40"
+            disabled={!page}
+            onClick={() => setPage(Math.max(0, page - 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Previous
+          </button>
+          <button
+            className="control rounded-full px-3 text-xs disabled:opacity-40"
+            disabled={(page + 1) * PAGE >= total}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>

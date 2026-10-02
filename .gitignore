@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Browser verification artifacts
+/test-results/
+/playwright-report/
+/.predpulse/spec-010-*.json
+/.predpulse/spec-010-*.png

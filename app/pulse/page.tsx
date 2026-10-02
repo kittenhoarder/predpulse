@@ -1,17 +1,33 @@
+import { Suspense } from "react";
+import SectionHeader from "@/components/SectionHeader";
+import ContinueLink from "@/components/ContinueLink";
 import { pageMetadata } from "@/lib/seo";
 import IndexGuide from "@/components/IndexGuide";
-import HeaderBar from "@/components/HeaderBar";
 import IndicesPageClient from "@/components/IndicesPageClient";
-export const metadata = pageMetadata("Prediction Market Indices | Predpulse",
-  "Explore Belief Shift, Fed policy balance and Market Attention: visual measures of prediction market probability changes and sampled trading activity.", "/pulse");
+export const metadata = pageMetadata(
+  "Prediction Market Indices | Predpulse",
+  "Explore Belief Shift, Fed policy balance and Market Attention: visual measures of prediction market probability changes and sampled trading activity.",
+  "/pulse",
+);
 export default function IndicesPage() {
-  return <div className="min-h-screen bg-background"><HeaderBar />
-    <main className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mb-8 border-b border-border pb-7"><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Prediction market measurements</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Indices</h1>
-        <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">A visual reading of changing market expectations, with the captured evidence one interaction away.</p></div>
-      <IndicesPageClient />
-      <IndexGuide />
-    </main>
-  </div>;
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="mx-auto max-w-screen-xl px-4 py-8 sm:px-6 sm:py-12">
+        <div className="mb-10">
+          <SectionHeader id="belief-shift" title="Indices" page />
+        </div>
+        <Suspense
+          fallback={
+            <p role="status" className="min-h-48 text-sm text-muted-foreground">
+              Loading saved indices…
+            </p>
+          }
+        >
+          <IndicesPageClient />
+        </Suspense>
+        <IndexGuide />
+        <ContinueLink path="/pulse" />
+      </main>
+    </div>
+  );
 }

@@ -4,10 +4,7 @@ import { SITE_URL, jsonLd, pageMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { fetchEventBySlug, fetchTags } from "@/lib/gamma";
 import { buildTagMap, processEvents } from "@/lib/process-markets";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Separator } from "@/components/ui/separator";
 import MarketDetailClient from "./MarketDetailClient";
-import PulseLogo from "@/components/PulseLogo";
 
 export const dynamic = "force-dynamic";
 const loadEvent = cache((slug: string) => fetchEventBySlug(slug).catch(() => null));
@@ -62,21 +59,7 @@ export default async function MarketDetailPage({ params }: PageProps) {
         }}
       />
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <a href="/" className="flex items-center gap-2.5">
-              <PulseLogo size="sm" />
-              <span className="font-semibold text-sm tracking-tight">Predpulse</span>
-            </a>
-            <Separator orientation="vertical" className="h-4 mx-1" />
-            <span className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-xs">
-              {market.categories[0] ?? "Market"}
-            </span>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         <MarketDetailClient market={market} />

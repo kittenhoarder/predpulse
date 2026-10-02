@@ -165,7 +165,7 @@
   }
 
   .page-enter {
-    animation: page-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: page-in 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   @keyframes panel-expand {
@@ -185,4 +185,27 @@
   .panel-exit {
     animation: panel-collapse 0.18s ease-in both;
   }
+}
+
+@layer components {
+  .control { @apply inline-flex min-h-11 min-w-11 items-center justify-center transition-colors hover:bg-muted/70 active:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary; touch-action: manipulation; }
+}
+html { scrollbar-gutter: stable; }
+button, a, select, summary { touch-action: manipulation; }
+[id] { scroll-margin-top: calc(72px + env(safe-area-inset-top)); }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .panel-enter, .panel-exit { animation: none; }
+}
+@media (hover: none) {
+  .evidence-hover { opacity: 1 !important; }
+}
+
+.landscape-paused .landscape-layer { animation-play-state: paused; }
+
+.evidence-card { display: none; }
+@media (hover: none), (max-width: 767px) { .evidence-row { display: none; } .evidence-card { display: inline-flex; } }
+
+[data-vaul-drawer], [data-vaul-overlay] { transition-duration: 150ms !important; animation-duration: 150ms !important; }
+@media (prefers-reduced-motion: reduce) {
+  [data-vaul-drawer], [data-vaul-overlay] { transition-duration: 0ms !important; animation-duration: 0ms !important; }
 }

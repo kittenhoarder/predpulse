@@ -4,11 +4,17 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, feat/spec-007-belief-shift, feat/spec-008-outcome-benchmarks]
+    branches:
+      [main, feat/spec-007-belief-shift, feat/spec-008-outcome-benchmarks]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        navigation: ["0", "1"]
+    env:
+      NEXT_PUBLIC_NAV_V2: ${{ matrix.navigation }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,4 +26,4 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      - run: npm test
+      - run: npm test -- --coverage

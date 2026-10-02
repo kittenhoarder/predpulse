@@ -30,7 +30,7 @@ interface CategoryFilterProps {
 
 export default function CategoryFilter({ active, onChange }: CategoryFilterProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto scrollbar-none" aria-label="Filter by category" role="group">
+    <div data-carousel className="flex gap-3 overflow-x-auto scrollbar-none" aria-label="Filter by category" role="group">
       {CATEGORIES.map(({ value, label, icon: Icon }) => {
         const isActive = active === value;
         return (
@@ -41,7 +41,7 @@ export default function CategoryFilter({ active, onChange }: CategoryFilterProps
             title={label}
             aria-label={label}
             onClick={() => onChange(value)}
-            className={`rounded-full h-7 w-7 p-0 shrink-0 ${
+            className={`rounded-full h-11 w-11 p-0 shrink-0 ${
               isActive ? "border-primary text-primary" : "text-muted-foreground"
             }`}
           >
