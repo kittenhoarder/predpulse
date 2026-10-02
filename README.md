@@ -1,5 +1,13 @@
 # Predpulse
 
+## Navigation and Guide (SPEC-010, planned)
+
+Splits the single homepage into Today, Moves, Outlooks, Indices and Markets, reached from a
+header Explore panel (a bottom sheet on mobile). All feature explanations move into one registry
+(`lib/guide.ts`) shown in a Guide panel, opening with why each feature matters. The Fed meeting
+has one view, Fed policy balance. Navigation is gated by `NEXT_PUBLIC_NAV_V2`.
+See [SPEC-010](docs/spec-010-navigation-and-guide.md).
+
 ## Durable evidence and history (SPEC-006)
 
 Open **Evidence & history** beneath Event outlooks, or visit `/research`. Select a
