@@ -145,14 +145,15 @@ Live: [predpulse.xyz](https://predpulse.xyz)
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 14 (App Router, SSR) |
+| Framework | Next.js 14 (App Router) |
 | Styling | Tailwind CSS + shadcn/ui |
-| Data | Polymarket Gamma + CLOB APIs, Kalshi Trade API, Manifold Markets API |
+| Data | Polymarket Gamma + CLOB, Kalshi, Manifold; Metaculus + Guardian via server proxies |
+| Persistence | Hourly GitHub publisher → private Vercel Blob snapshot |
 | Charts | Recharts |
-| Real-time | WebSocket (Kalshi + Polymarket CLOB) via `useMarketSocket` |
-| Hosting | Vercel |
+| Real-time | WebSocket (Kalshi + Polymarket CLOB) via `useMarketSocket` (browser → venue, not Vercel) |
+| Hosting | Vercel (CDN + Fluid); WAF rate limit on noisy `/api/*` paths |
 
-No database or user auth. The optional Blob snapshot is the persistent cache for market ingestion; without it the market API fetches live sources as a fallback.
+No database or user auth. Visitor APIs prefer the published Blob snapshot. `/api/markets` still falls back to live venue ingest if no snapshot is available.
 
 Index snapshot persistence is **opt-in** via `INDEX_PERSISTENCE_ENABLED=true` (default: disabled/in-memory).
 
@@ -161,20 +162,29 @@ Index snapshot persistence is **opt-in** via `INDEX_PERSISTENCE_ENABLED=true` (d
 ## Architecture
 
 ```
-Polymarket Gamma API ──► lib/gamma.ts ──────────┐
-Kalshi Trade API     ──► lib/kalshi.ts ──────────┤──► lib/get-markets.ts ──► /api/markets
-Manifold Markets API ──► lib/manifold.ts ────────┘          │
-                                                      MarketTable (SWR)
-                                                            │
-                                                      MarketRow (expand)
-                                                            │
-                                                      ExpandedPanel
-                                                      ├── CLOB prices-history (sparkline, Polymarket only)
-                                                      └── data-api trades (recent activity, Polymarket only)
+GitHub Actions (hourly)
+  └── scripts/publish-snapshot.ts
+        └── fetchAllSources(fresh) ──► select + digests ──► private Blob (manifest + generation)
 
-GitHub publisher ──► lib/belief-shift.ts ──► immutable snapshot
-/pulse      ──► /api/indices ──► IndicesSection (saved Belief Shift)
-/market/[slug] ──► fetchEventBySlug ──► MarketDetailClient
+Visitor path (CDN-friendly)
+  /  (static shell)
+    └── HomeDashboard ──SWR──► /api/bootstrap ──► loadPublishedSnapshot
+          ├── NewsroomSection ──SWR──► /api/news?q=…     ──► Guardian (normalized q)
+          ├── outlooks / monitor / related / indices from bootstrap JSON
+          └── MarketTable ──SWR──► /api/markets          ──► snapshot filter (live fallback if none)
+                └── ExpandedPanel
+                      ├── /api/news?q=… / /api/metaculus?q=…  (Token auth; cached empty/error)
+                      ├── CLOB prices-history / trades (browser → Polymarket)
+                      └── FRED / CoinGecko (browser → upstream)
+
+  /pulse            ──► /api/indices          ──► saved Belief Shift / attention
+  /events/…         ──► loadPageSnapshot      ──► ISR revalidate=300
+  /compare/…        ──► loadPageSnapshot      ──► ISR revalidate=300
+  /research         ──► loadPublishedSnapshot / historical
+  /market/[slug]    ──► fetchEventBySlug      ──► live Gamma (detail)
+
+Open `q=` proxies run through lib/search-query.ts so CDN keys coalesce.
+Share cards use static /social-card.png (no /api/og).
 ```
 
 ---
@@ -183,42 +193,34 @@ GitHub publisher ──► lib/belief-shift.ts ──► immutable snapshot
 
 ```
 app/
-  page.tsx                  # Saved homepage bootstrap and existing feature sections
-  layout.tsx                # ThemeProvider, Inter font, OG metadata
-  api/markets/route.ts      # GET ?sort=&category=&offset=&watchlist=&source=
-  api/pulse/route.ts        # GET — HTTP 410 retirement response
-  api/metaculus/route.ts    # GET ?q= — Metaculus proxy (METACULUS_API_KEY)
-  api/news/route.ts         # GET ?q= — Guardian news proxy
-  pulse/page.tsx            # Indices catalogue and Belief Shift detail
-  market/[slug]/
-    page.tsx                # generateMetadata + SSR market detail
-    MarketDetailClient.tsx  # Hero stats, Share button, ExpandedPanel
+  page.tsx                     # Static homepage shell + HomeDashboard
+  layout.tsx                   # ThemeProvider, metadata, Analytics
+  robots.ts / sitemap.ts       # Allow /api/bootstrap + /api/indices only under /api/
+  api/bootstrap/route.ts       # Homepage snapshot JSON (s-maxage=300)
+  api/markets/route.ts         # Paginated markets from snapshot (live fallback)
+  api/indices/route.ts         # Saved index products from snapshot
+  api/news/route.ts            # Guardian proxy; normalizeSearchQuery + CDN cache
+  api/metaculus/route.ts       # Metaculus proxy; METACULUS_API_KEY + CDN cache
+  api/research/route.ts        # Evidence JSON download
+  api/pulse/route.ts           # HTTP 410 retirement
+  pulse/page.tsx               # Indices catalogue
+  research/page.tsx            # Evidence & history browser
+  events/[source]/[id]/page.tsx  # Snapshot event detail (ISR 300s)
+  compare/[pairId]/page.tsx    # Cross-venue pair (ISR 300s)
+  market/[slug]/               # Live Polymarket detail
+  methodology/page.tsx         # Static product methodology
 
 lib/
-  types.ts                  # All shared types: ProcessedMarket, SortMode, PulseIndex, etc.
-  gamma.ts                  # fetchAllActiveEvents(), fetchTags(), fetchEventBySlug() (Polymarket)
-  process-markets.ts        # processEvents() — raw Gamma → ProcessedMarket[]
-  kalshi.ts                 # fetchKalshiMarkets() — raw Kalshi → ProcessedMarket[]
-  manifold.ts               # fetchManifoldMarkets() — raw Manifold v0 → ProcessedMarket[]
-  get-markets.ts            # merge + filter + sort + paginate; GetMarketsOptions
-  belief-shift.ts           # Pure publisher calculation, cohorts, identity validation and history
-  index-products.ts         # Versioned saved index contract and client-safe helpers
-  pulse.ts                  # Archived experimental engine; no active index serving imports
-  watchlist.ts              # localStorage helpers: getWatchlist / toggleWatchlist
-  hooks/
-    useMarketSocket.ts      # WebSocket client for live Polymarket CLOB + Kalshi prices
+  snapshot.ts / page-snapshot.ts / snapshot-response.ts
+  search-query.ts              # normalizeSearchQuery + SEARCH_PROXY_CACHE
+  metaculus.ts                 # searchMetaculusQuestions (Token auth)
+  get-markets.ts / gamma.ts / kalshi.ts / manifold.ts
+  belief-shift.ts / index-products.ts / observations.ts / …
+  hooks/useMarketSocket.ts
 
 components/
-  MarketTable.tsx           # SWR, controls bar, source/sort/category filters, heatmap/table toggle
-  MarketRow.tsx             # Row + expand toggle + star + external trade links (P/K/M)
-  ExpandedPanel.tsx         # Chart (CLOB, Polymarket only), stats grid, recent trades, resolution
-  HeatmapView.tsx           # Recharts Treemap: tile=liquidity, color=24h change
-  SortTabs.tsx              # Sort tab bar (watchlist star, Movers, 1h Movers, Gainers…)
-  CategoryFilter.tsx        # Icon+label pill filters, horizontal scroll on mobile
-  IndicesSection.tsx        # Saved index tiles, local expansion and evidence export
-  BeliefShiftCharts.tsx     # SVG movement scale, before/after marks and bounded trend
-  ThemeProvider/Toggle.tsx  # next-themes dark/light
-  ui/                       # shadcn/ui primitives (badge, button, table…)
+  HomeDashboard.tsx            # Bootstrap SWR + section composition
+  NewsroomSection.tsx / ExpandedPanel.tsx / MarketTable.tsx / …
 ```
 
 ---
@@ -281,17 +283,39 @@ Confidence is computed as: `freshness × sourceAgreement × featureCoverage`.
 
 ## API Routes
 
+### `GET /api/bootstrap`
+
+Homepage payload from the published snapshot: first markets page, monitor extras,
+index products, observations, outlooks, related pairs. `Cache-Control: public,
+s-maxage=300, stale-while-revalidate=3600`. HTTP 503 + `Retry-After: 60` when no
+snapshot exists (no live venue fan-out on this route).
+
 ### `GET /api/markets`
 
 | Param | Default | Notes |
 |---|---|---|
 | `sort` | `movers` | See SortMode |
 | `category` | `all` | Tag slug or `all` |
-| `offset` | `0` | Pagination (100 per page) |
+| `offset` | `0` | Pagination |
+| `limit` | `50` | Allowed: `25`, `50`, `100` |
 | `watchlist` | — | Comma-separated market IDs; required when `sort=watchlist` |
 | `source` | `all` | `all` \| `polymarket` \| `kalshi` \| `manifold` |
+| `hideSmall` | `true` | Pass `false` to include below-threshold markets |
 
-Returns `MarketsApiResponse`: `{ markets, cachedAt, totalMarkets, fromCache }`.
+Serves from the snapshot when present; otherwise live `getMarkets()`. Same CDN
+cache header as bootstrap when successful.
+
+### `GET /api/news?q=`
+
+Guardian Open Platform proxy. `q` is normalized (lowercase, first 4 words, max
+100 chars) before upstream and caching. Empty/error responses still send
+`s-maxage=300`. Optional `GUARDIAN_API_KEY` (defaults to Guardian `test` key).
+
+### `GET /api/metaculus?q=`
+
+Metaculus open-question proxy. Same `q` normalization and CDN policy as news.
+Requires server-only `METACULUS_API_KEY` (`Authorization: Token …`); without it
+returns `{ questions: [] }` without calling upstream.
 
 ### `GET /api/pulse`
 
