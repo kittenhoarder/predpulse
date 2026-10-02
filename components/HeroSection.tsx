@@ -8,7 +8,7 @@ export default function HeroSection() {
       className="relative isolate overflow-hidden"
       aria-labelledby="hero-title"
     >
-      <div className="relative mx-auto flex min-h-[300px] max-w-screen-2xl flex-col px-6 pb-8 pt-10 sm:min-h-[360px] sm:px-10 sm:pb-4 sm:pt-14 lg:min-h-[min(44vh,430px)] lg:justify-center lg:py-16">
+      <div className="relative mx-auto flex min-h-[300px] max-w-screen-2xl flex-col px-6 pb-10 pt-14 sm:min-h-[400px] sm:px-10 sm:pb-8 sm:pt-16 lg:min-h-[clamp(440px,56vh,560px)] lg:justify-center lg:py-20">
         <div className="relative z-10 max-w-xl">
           {!NAV_V2 && (
             <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary">
@@ -23,7 +23,7 @@ export default function HeroSection() {
           </h1>
         </div>
         <div
-          className="pointer-events-none relative mt-4 h-36 w-full shrink-0 sm:h-48 lg:absolute lg:inset-y-0 lg:right-0 lg:mt-0 lg:h-full lg:w-[68%]"
+          className="pointer-events-none relative mt-6 h-40 w-full shrink-0 sm:h-48 lg:absolute lg:inset-y-6 lg:right-0 lg:mt-0 lg:h-auto lg:w-[68%]"
           aria-hidden="true"
         >
           <ProbabilityLandscape />
