@@ -6,7 +6,8 @@ import RelatedPairCard from "@/components/RelatedPairCard";
 import PulseLogo from "@/components/PulseLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-export const dynamic = "force-dynamic";
+// Snapshot only changes on the hourly publisher; CDN can reuse HTML between publishes.
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: { pairId: string } }) {
   const snapshot = await loadPageSnapshot();

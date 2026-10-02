@@ -20,7 +20,7 @@ Use a checked-in 1200×630 PNG share image. The illustration contains no live qu
 
 Home, indices, methodology, sitemap and robots remain static. Sitemap generation performs zero venue or Blob reads, and lists four durable routes. No invented `lastmod` values. The volatile bounded market selection is not a stable sitemap inventory.
 
-Allow the rendering resources `/api/bootstrap`, `/api/indices` and existing `/api/og` through robots.txt. Other APIs remain disallowed; API responses carry `X-Robots-Tag: noindex`. Existing caching and polling remain unchanged.
+Allow the rendering resources `/api/bootstrap` and `/api/indices` through robots.txt. Other APIs remain disallowed; API responses carry `X-Robots-Tag: noindex`. The legacy `/api/og` edge image route was removed — product pages use the static `/social-card.png`. Existing caching and polling remain unchanged for human clients; open `q=` proxies normalize the query so CDN keys coalesce.
 
 Metadata and server-rendered event/comparison content share request-scoped React cache calls. Market metadata and content share the event acquisition, rather than fetching it twice. No new schedule, upstream acquisition, persistence, analytics or runtime image generation.
 
