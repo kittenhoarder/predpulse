@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { GdeltArticle } from "@/lib/types";
+import { normalizeSearchQuery, SEARCH_PROXY_CACHE } from "@/lib/search-query";
 
 export const dynamic = "force-dynamic";
 
@@ -55,22 +56,23 @@ function querySections(q: string): string | null {
   return null;
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q")?.trim();
+function emptyNews(unavailable = false) {
+  return NextResponse.json(
+    { articles: [] as (GdeltArticle & { image?: string; summary?: string })[], ...(unavailable ? { unavailable: true } : {}) },
+    { headers: { "Cache-Control": SEARCH_PROXY_CACHE } },
+  );
+}
 
-  if (!q) {
-    return NextResponse.json({ articles: [] });
-  }
+export async function GET(req: NextRequest) {
+  const q = normalizeSearchQuery(req.nextUrl.searchParams.get("q") ?? "");
+
+  if (!q) return emptyNews();
 
   try {
     const section = querySections(q);
 
-    // Build Guardian query — use the first 4 meaningful words as the search term
-    const searchTerms = q.split(/\s+/).slice(0, 4).join(" ");
-
     const params = new URLSearchParams({
-      q: searchTerms,
+      q,
       "show-fields": "headline,thumbnail,trailText",
       "order-by": "newest",
       "page-size": "8",
@@ -86,9 +88,7 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       console.error(`[/api/news] Guardian ${res.status}`);
-      return NextResponse.json({ articles: [], unavailable: true }, {
-        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
-      });
+      return emptyNews(true);
     }
 
     const json = await res.json();
@@ -115,17 +115,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       { articles },
-      {
-        headers: {
-          // Edge-cache 5 min, serve stale for 10 min while revalidating
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        },
-      }
+      { headers: { "Cache-Control": SEARCH_PROXY_CACHE } },
     );
   } catch (err) {
     console.error("[/api/news]", err);
-    return NextResponse.json({ articles: [], unavailable: true }, {
-      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
-    });
+    return emptyNews(true);
   }
 }

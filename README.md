@@ -175,7 +175,6 @@ Manifold Markets API ──► lib/manifold.ts ────────┘      
 GitHub publisher ──► lib/belief-shift.ts ──► immutable snapshot
 /pulse      ──► /api/indices ──► IndicesSection (saved Belief Shift)
 /market/[slug] ──► fetchEventBySlug ──► MarketDetailClient
-/api/og        ──► @vercel/og (edge) ──► OG share card
 ```
 
 ---
@@ -188,7 +187,8 @@ app/
   layout.tsx                # ThemeProvider, Inter font, OG metadata
   api/markets/route.ts      # GET ?sort=&category=&offset=&watchlist=&source=
   api/pulse/route.ts        # GET — HTTP 410 retirement response
-  api/og/route.tsx          # Edge OG image (1200x630) for share cards
+  api/metaculus/route.ts    # GET ?q= — Metaculus proxy (METACULUS_API_KEY)
+  api/news/route.ts         # GET ?q= — Guardian news proxy
   pulse/page.tsx            # Indices catalogue and Belief Shift detail
   market/[slug]/
     page.tsx                # generateMetadata + SSR market detail
@@ -322,17 +322,6 @@ Downloads captured evidence and coverage as JSON. Omit `at` for latest. Historic
 lookup requires a saved generation within 45 minutes and reports its actual time.
 Missing generations return 404. `/research` provides the browsing interface.
 
-### `GET /api/og`
-
-| Param | Notes |
-|---|---|
-| `title` | Market question |
-| `prob` | Probability 0–100 |
-| `change` | e.g. `+7.3%` |
-| `category` | Category label |
-
-Returns a 1200×630 PNG. Used by `generateMetadata` in `/market/[slug]`.
-
 ---
 
 ## External APIs Used
@@ -346,27 +335,32 @@ Returns a 1200×630 PNG. Used by `generateMetadata` in `/market/[slug]`.
 | Kalshi Trade API | `trading-api.kalshi.com/trade-api/v2/markets` | None |
 | Kalshi WebSocket | `wss://api.elections.kalshi.com/trade-api/ws/v2` | None |
 | Manifold Markets | `api.manifold.markets/v0/markets?limit=1000&sort=last-bet-time` | None |
+| Metaculus | `www.metaculus.com/api2/questions` | `METACULUS_API_KEY` (`Authorization: Token …`) |
+| The Guardian | `content.guardianapis.com/search` | Optional `GUARDIAN_API_KEY` |
 
 ---
 
 ## Local Dev
 
 ```bash
-cp .env.local.example .env.local   # set NEXT_PUBLIC_APP_URL
+cp .env.local.example .env.local   # set NEXT_PUBLIC_APP_URL (+ METACULUS_API_KEY for related forecasts)
 npm install
 npm run dev                        # http://localhost:3000
 ```
 
-`.env.local` only needs:
+`.env.local` typically needs:
 ```
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+METACULUS_API_KEY=…               # server-only; expand-panel Metaculus
 ```
 
 ---
 
 ## Deploy
 
-Push to `main` → Vercel auto-deploys. No env vars required beyond `NEXT_PUBLIC_APP_URL` (set in Vercel project settings).
+Push to `main` → Vercel auto-deploys. Set `NEXT_PUBLIC_APP_URL` and `METACULUS_API_KEY` in Vercel project env (Production + Preview). Snapshot Blob credentials remain as documented above.
+
+**Feature flag / abuse controls:** WAF rate limit on `/api/news|metaculus|markets|og` (60/min/IP). Disable the Firewall rule in the Vercel dashboard to roll back without a redeploy. Attack Challenge Mode is emergency-only.
 
 **Rollback:** Vercel dashboard → Deployments → Promote previous deployment.
 

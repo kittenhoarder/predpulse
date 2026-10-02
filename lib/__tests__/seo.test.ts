@@ -21,6 +21,7 @@ describe("crawlable product discovery", () => {
     expect(rules[0].disallow).toBe("/api/");
     expect(rules[0].allow).toContain("/api/bootstrap");
     expect(rules[0].allow).toContain("/api/indices");
+    expect(rules[0].allow).not.toContain("/api/og");
     expect(robots().sitemap).toBe(`${SITE_URL}/sitemap.xml`);
   });
   it("withholds preview sitemaps and disallows preview crawling", () => {
