@@ -3,8 +3,6 @@ import { pageMetadata } from "@/lib/seo";
 import { loadPublishedSnapshot, loadHistoricalSnapshot, listHistoricalSnapshots } from "@/lib/snapshot";
 import { researchEvaluation } from "@/lib/research-evaluation";
 import MetaNote from "@/components/MetaNote";
-import PulseLogo from "@/components/PulseLogo";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 export function generateMetadata({ searchParams }: { searchParams: { at?: string } }) {
@@ -27,9 +25,9 @@ export default async function ResearchPage({ searchParams }: { searchParams: { a
   for (const stamp of [...dates].reverse()) if (!seenDays.has(stamp.slice(0, 10))) { seenDays.add(stamp.slice(0, 10)); selected.add(stamp); }
   const options = Array.from(selected).sort().reverse();
   return <div className="min-h-screen bg-background">
-    <header className="border-b border-border"><div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-4 sm:px-6"><Link href="/" className="flex items-center gap-2 text-sm font-semibold"><PulseLogo size="sm" />Predpulse</Link><ThemeToggle /></div></header>
-    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <Link href="/#event-outlooks" className="text-xs text-muted-foreground hover:text-foreground">← Back to outlooks</Link>
+
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <Link href="/outlooks" className="inline-flex min-h-11 items-center text-xs text-muted-foreground hover:text-foreground">← Back to outlooks</Link>
       <div className="mt-6 flex items-center justify-between gap-3"><h1 className="text-2xl font-semibold tracking-tight">Evidence & history</h1>
         <MetaNote kind="method" title="What this evidence establishes">
           <p>Hourly publisher capture, independent of website visits. A bounded prospective cohort tracks one YES binary contract per event family from the sampled Polymarket feed, up to 16 contracts. This is sampled coverage, not a representative accuracy study.</p>

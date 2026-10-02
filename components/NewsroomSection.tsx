@@ -1,11 +1,19 @@
 "use client";
+import SectionHeader from "./SectionHeader";
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { formatDistanceToNow, parse } from "date-fns";
-import type { GdeltArticle, MarketsApiResponse, ProcessedMarket } from "@/lib/types";
+import type {
+  GdeltArticle,
+  MarketsApiResponse,
+  ProcessedMarket,
+} from "@/lib/types";
 import { ToneBadge, toneGradientClass } from "@/lib/tone";
-import { matchArticlesToMarkets, buildNewsroomQuery } from "@/lib/match-markets";
+import {
+  matchArticlesToMarkets,
+  buildNewsroomQuery,
+} from "@/lib/match-markets";
 import { marketTradeUrl } from "@/lib/format";
 import { ExternalLink } from "lucide-react";
 
@@ -72,7 +80,7 @@ function MarketChip({ market }: { market: ProcessedMarket }) {
       {...(isExternal && { target: "_blank", rel: "noopener noreferrer" })}
       onClick={(e) => e.stopPropagation()}
       aria-label={`${market.question} — ${prob}% yes`}
-      className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-muted/60 hover:bg-muted transition-colors text-[11px] w-full group"
+      className="flex items-center justify-between gap-2 min-h-11 px-2.5 py-2 rounded-lg bg-muted/60 hover:bg-muted transition-colors text-xs w-full group"
     >
       <span className="text-muted-foreground group-hover:text-foreground transition-colors leading-snug">
         {truncated}
@@ -88,7 +96,13 @@ function MarketChip({ market }: { market: ProcessedMarket }) {
 // StoryCard — full news card with hero image, headline, chips
 // ---------------------------------------------------------------------------
 
-function StoryCard({ article, markets }: { article: NewsArticle; markets: ProcessedMarket[] }) {
+function StoryCard({
+  article,
+  markets,
+}: {
+  article: NewsArticle;
+  markets: ProcessedMarket[];
+}) {
   const [imgError, setImgError] = useState(false);
   const hasImage = article.image && !imgError;
   const gradientClass = toneGradientClass(article.tone);
@@ -108,7 +122,9 @@ function StoryCard({ article, markets }: { article: NewsArticle; markets: Proces
           />
         ) : (
           // Fallback gradient tile when og:image is absent or fails
-          <div className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-end`} />
+          <div
+            className={`w-full h-full bg-gradient-to-br ${gradientClass} flex items-end`}
+          />
         )}
 
         {/* Dark gradient overlay — headline and meta sit on top */}
@@ -124,9 +140,11 @@ function StoryCard({ article, markets }: { article: NewsArticle; markets: Proces
               className="w-4 h-4 rounded-sm shrink-0 opacity-90"
               loading="lazy"
             />
-            <span className="text-[10px] text-white/70 font-medium">{article.domain}</span>
+            <span className="text-xs text-white/70 font-medium">
+              {article.domain}
+            </span>
             {article.seendate && (
-              <span className="text-[10px] text-white/50 hidden sm:inline">
+              <span className="text-xs text-white/50 hidden sm:inline">
                 · {gdeltRelativeTime(article.seendate)}
               </span>
             )}
@@ -144,14 +162,18 @@ function StoryCard({ article, markets }: { article: NewsArticle; markets: Proces
       <div className="flex flex-col p-3 flex-1 min-h-[7.5rem]">
         <div className="flex items-center justify-between gap-2 mb-1.5 shrink-0">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">
-            {markets.length > 0 ? "Related markets" : article.summary ? "Article" : ""}
+            {markets.length > 0
+              ? "Related markets"
+              : article.summary
+                ? "Article"
+                : ""}
           </span>
           <a
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+            className="inline-flex min-h-11 items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
             aria-label={`Read article: ${article.title}`}
           >
             Read article <ExternalLink className="w-3 h-3" />
@@ -202,46 +224,59 @@ function SkeletonCard() {
 // Used only when the market snapshot is unavailable.
 const DEFAULT_NEWS_QUERY = "election economy bitcoin federal reserve trump";
 
-const MARKETS_SWR_KEY = "/api/markets?sort=movers&category=all&offset=0&limit=50";
+const MARKETS_SWR_KEY =
+  "/api/markets?sort=movers&category=all&offset=0&limit=50";
 
-export default function NewsroomSection({ initialMarkets }: { initialMarkets?: MarketsApiResponse }) {
+export default function NewsroomSection({
+  initialMarkets,
+}: {
+  initialMarkets?: MarketsApiResponse;
+}) {
   // Reuse the same market data already in-flight from MarketTable (SWR deduplicates)
   const { data: fallbackMarkets } = useSWR<MarketsApiResponse>(
     initialMarkets ? null : MARKETS_SWR_KEY,
     fetcher,
-    { refreshInterval: 300_000, revalidateOnFocus: false }
+    { refreshInterval: 300_000, revalidateOnFocus: false },
   );
   const marketsData = initialMarkets ?? fallbackMarkets;
 
   // Use the bootstrap snapshot immediately, avoiding a second news request
   // when the earlier default query would have been replaced after mount.
-  const newsQuery = useMemo(() => marketsData?.markets?.length
-    ? buildNewsroomQuery(marketsData.markets) || DEFAULT_NEWS_QUERY : DEFAULT_NEWS_QUERY,
-  [marketsData?.markets]);
-
-  // Fetch news via the server-side proxy (no CORS issues, cached at edge 5min)
-  const { data: newsData, isLoading: newsLoading } = useSWR<{ articles: NewsArticle[]; unavailable?: boolean }>(
-    `/api/news?q=${encodeURIComponent(newsQuery)}`,
-    fetcher,
-    { refreshInterval: 300_000, revalidateOnFocus: false, keepPreviousData: true }
+  const newsQuery = useMemo(
+    () =>
+      marketsData?.markets?.length
+        ? buildNewsroomQuery(marketsData.markets) || DEFAULT_NEWS_QUERY
+        : DEFAULT_NEWS_QUERY,
+    [marketsData?.markets],
   );
 
-  const articles = useMemo(() => newsData?.articles ?? [], [newsData?.articles]);
+  // Fetch news via the server-side proxy (no CORS issues, cached at edge 5min)
+  const { data: newsData, isLoading: newsLoading } = useSWR<{
+    articles: NewsArticle[];
+    unavailable?: boolean;
+  }>(`/api/news?q=${encodeURIComponent(newsQuery)}`, fetcher, {
+    refreshInterval: 300_000,
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+  });
+
+  const articles = useMemo(
+    () => newsData?.articles ?? [],
+    [newsData?.articles],
+  );
   const allMarkets = useMemo(
     () => (marketsData?.markets ?? []) as ProcessedMarket[],
-    [marketsData?.markets]
+    [marketsData?.markets],
   );
 
   // Keep one visual row before the monitor; match each story to relevant markets.
   const stories: StoryWithMarkets[] = useMemo(
     () =>
-      articles
-        .slice(0, 3)
-        .map((article) => ({
-          article,
-          markets: matchArticlesToMarkets(article.title, allMarkets, 3),
-        })),
-    [articles, allMarkets]
+      articles.slice(0, 3).map((article) => ({
+        article,
+        markets: matchArticlesToMarkets(article.title, allMarkets, 3),
+      })),
+    [articles, allMarkets],
   );
 
   // Show skeletons while loading, hide section only after a confirmed empty response
@@ -250,29 +285,38 @@ export default function NewsroomSection({ initialMarkets }: { initialMarkets?: M
   if (isEmpty && !newsData?.unavailable) return null;
 
   return (
-    <section className="py-3">
-      {/* Section label — matches "Markets" label style */}
-      <div className="mb-3">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
-          Newsroom
-        </span>
-      </div>
+    <section id="newsroom">
+      <SectionHeader id="newsroom" />
 
       {newsData?.unavailable && isEmpty ? (
-        <p role="status" className="text-xs text-muted-foreground">News feed temporarily unavailable.</p>
+        <p role="status" className="text-xs text-muted-foreground">
+          News feed temporarily unavailable.
+        </p>
       ) : showSkeleton ? (
         <>
-          <div className="sm:hidden flex gap-3 overflow-hidden -mx-4 px-4"><div className="w-[85vw] shrink-0"><SkeletonCard /></div></div>
+          <div className="sm:hidden flex gap-3 overflow-hidden -mx-4 px-4">
+            <div className="w-[85vw] shrink-0">
+              <SkeletonCard />
+            </div>
+          </div>
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         </>
       ) : (
         <>
           {/* Mobile: horizontal snap-scroll strip */}
-          <div className="sm:hidden flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-none">
+          <div
+            data-carousel
+            className="sm:hidden flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-none"
+          >
             {stories.map((story, i) => (
-              <div key={`${story.article.url}-${i}`} className="w-[85vw] shrink-0 snap-start">
+              <div
+                key={`${story.article.url}-${i}`}
+                className="w-[85vw] shrink-0 snap-start"
+              >
                 <StoryCard article={story.article} markets={story.markets} />
               </div>
             ))}

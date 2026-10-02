@@ -1,0 +1,52 @@
+name: Navigation Preview verification
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: Public Vercel Preview URL with NEXT_PUBLIC_NAV_V2=1
+        required: true
+      report_only:
+        description: Report unfinished layout budgets without enforcing them
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment != 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUDIT_URL: ${{ inputs.preview_url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify preview flag
+        run: |
+          node --input-type=module -e '
+            const url = new URL(process.env.AUDIT_URL);
+            if (url.protocol !== "https:" || !url.hostname.endsWith(".vercel.app")) throw new Error("Expected an HTTPS Vercel Preview URL");
+            const response = await fetch(url);
+            if (!response.ok || !(await response.text()).includes("Explore Predpulse")) throw new Error("Preview must be public and NEXT_PUBLIC_NAV_V2=1");
+          '
+      - run: npm run test:browser
+      - name: Audit mobile layouts
+        env:
+          REPORT_ONLY: ${{ inputs.report_only }}
+        run: |
+          if [ "$REPORT_ONLY" = "true" ]; then npm run audit:mobile -- --report-only; else npm run audit:mobile; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: navigation-verification
+          path: |
+            .predpulse/spec-010-audit.json
+            test-results/

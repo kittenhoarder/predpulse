@@ -4,13 +4,27 @@ import { useState, useEffect, useRef } from "react";
 import type { ProcessedMarket, LivePrice } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { ExternalLink, ChevronRight, Star, Link } from "lucide-react";
+import { ExternalLink, ChevronRight, Star } from "lucide-react";
+import MarketEvidence from "./MarketEvidence";
 import dynamic from "next/dynamic";
 const ExpandedPanel = dynamic(() => import("./ExpandedPanel"), {
-  loading: () => <div role="status" className="p-4 text-xs text-muted-foreground">Loading market details…</div>,
+  loading: () => (
+    <div role="status" className="p-4 text-xs text-muted-foreground">
+      Loading market details…
+    </div>
+  ),
 });
-import { isWatchlisted, toggleWatchlist, WATCHLIST_CHANGE } from "@/lib/watchlist";
-import { formatCurrency, formatContracts, formatChange, marketTradeUrl } from "@/lib/format";
+import {
+  isWatchlisted,
+  toggleWatchlist,
+  WATCHLIST_CHANGE,
+} from "@/lib/watchlist";
+import {
+  formatCurrency,
+  formatContracts,
+  formatChange,
+  marketTradeUrl,
+} from "@/lib/format";
 
 export { formatCurrency, formatChange };
 
@@ -21,7 +35,12 @@ interface MarketRowProps {
   livePrice?: LivePrice;
 }
 
-export default function MarketRow({ market, rank, onWatchlistChange, livePrice }: MarketRowProps) {
+export default function MarketRow({
+  market,
+  rank,
+  onWatchlistChange,
+  livePrice,
+}: MarketRowProps) {
   const [expanded, setExpanded] = useState(false);
   // closing: true while the exit animation plays before unmounting
   const [closing, setClosing] = useState(false);
@@ -76,7 +95,8 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
 
   const isPositive = market.oneDayChange > 0;
   const isNeutral = market.oneDayChange === 0;
-  const outcomeLabel = market.source === "polymarket" ? market.outcomes[0]?.trim() : undefined;
+  const outcomeLabel =
+    market.source === "polymarket" ? market.outcomes[0]?.trim() : undefined;
   const tradeUrl = marketTradeUrl(market.source, market.eventSlug);
 
   function handleStar(e: React.MouseEvent) {
@@ -93,15 +113,24 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
         onClick={toggleExpanded}
       >
         {/* Rank + expand chevron */}
-        <TableCell className="tabular-nums text-sm">
-          <span className="flex items-center gap-1">
+        <TableCell className="px-1 tabular-nums text-sm">
+          <button
+            type="button"
+            aria-label={`Expand ${market.question}`}
+            aria-expanded={expanded}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleExpanded();
+            }}
+            className="control gap-1"
+          >
             <ChevronRight
               className={`w-3 h-3 text-muted-foreground shrink-0 transition-transform duration-200 ease-out ${
                 expanded ? "rotate-90" : ""
               }`}
             />
             <span className="text-muted-foreground">{rank}</span>
-          </span>
+          </button>
         </TableCell>
 
         {/* Market question + category badges + source badge */}
@@ -116,7 +145,7 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
             {/* Source badge */}
             <Badge
               variant="outline"
-              className={`text-[9px] px-1 py-0 rounded font-semibold tracking-wide ${
+              className={`text-xs px-1 py-0 rounded font-semibold tracking-wide ${
                 market.source === "kalshi"
                   ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                   : market.source === "manifold"
@@ -124,13 +153,17 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
                     : "border-cyan-500/40 text-cyan-400 bg-cyan-500/10"
               }`}
             >
-              {market.source === "kalshi" ? "K" : market.source === "manifold" ? "M" : "P"}
+              {market.source === "kalshi"
+                ? "K"
+                : market.source === "manifold"
+                  ? "M"
+                  : "P"}
             </Badge>
             {market.categories.slice(0, 2).map((cat) => (
               <Badge
                 key={cat}
                 variant="secondary"
-                className="text-[10px] px-1.5 py-0 rounded-full font-normal"
+                className="text-xs px-1.5 py-0 rounded-full font-normal"
               >
                 {cat}
               </Badge>
@@ -141,9 +174,13 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
         {/* Kalshi shows the YES ask, which can be far from the last trade in a thin market. */}
         <TableCell className="text-right tabular-nums">
           <span
-            title={market.source === "kalshi"
-              ? `Kalshi YES ask. Bid ${(market.bestBid * 100).toFixed(1)}%, ask ${(market.bestAsk * 100).toFixed(1)}%.`
-              : outcomeLabel ? `${outcomeLabel} market price` : undefined}
+            title={
+              market.source === "kalshi"
+                ? `Kalshi YES ask. Bid ${(market.bestBid * 100).toFixed(1)}%, ask ${(market.bestAsk * 100).toFixed(1)}%.`
+                : outcomeLabel
+                  ? `${outcomeLabel} market price`
+                  : undefined
+            }
             className={`text-sm font-semibold transition-colors duration-300 ${
               flash === "up"
                 ? "text-emerald-400"
@@ -154,17 +191,27 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
           >
             {(livePrice?.price ?? market.currentPrice).toFixed(1)}%
           </span>
-          {market.source === "kalshi" && <span className="block text-[10px] text-muted-foreground">YES ask</span>}
-          {outcomeLabel && !/^yes$/i.test(outcomeLabel) &&
-            <span className="block max-w-28 truncate text-[10px] text-muted-foreground" title={outcomeLabel}>{outcomeLabel}</span>}
+          {market.source === "kalshi" && (
+            <span className="block text-xs text-muted-foreground">YES ask</span>
+          )}
+          {outcomeLabel && !/^yes$/i.test(outcomeLabel) && (
+            <span
+              className="block max-w-28 truncate text-xs text-muted-foreground"
+              title={outcomeLabel}
+            >
+              {outcomeLabel}
+            </span>
+          )}
         </TableCell>
 
         {/* 24h change */}
         <TableCell className="text-right tabular-nums">
           <Badge
-            title={market.source === "kalshi" && !market.kalshiAskChangeAvailable
-              ? "24h ask move withheld: no comparable quote, fewer than 500 contracts traded or open, or spread wider than 5 percentage points."
-              : undefined}
+            title={
+              market.source === "kalshi" && !market.kalshiAskChangeAvailable
+                ? "24h ask move withheld: no comparable quote, fewer than 500 contracts traded or open, or spread wider than 5 percentage points."
+                : undefined
+            }
             variant="outline"
             className={`text-xs font-semibold rounded-full ${
               isNeutral
@@ -174,7 +221,8 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
                   : "text-red-500 border-red-500/30 bg-red-500/10"
             }`}
           >
-            {market.source === "kalshi" && market.kalshiAskChangeAvailable !== true
+            {market.source === "kalshi" &&
+            market.kalshiAskChangeAvailable !== true
               ? "—"
               : formatChange(market.oneDayChange)}
           </Badge>
@@ -182,48 +230,64 @@ export default function MarketRow({ market, rank, onWatchlistChange, livePrice }
 
         {/* 24h volume */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          <span title={market.source === "kalshi" ? "Contracts traded in 24h" : "24h volume in USD"}>
-            {market.source === "kalshi" ? formatContracts(market.volume24h) : formatCurrency(market.volume24h)}
+          <span
+            title={
+              market.source === "kalshi"
+                ? "Contracts traded in 24h"
+                : "24h volume in USD"
+            }
+          >
+            {market.source === "kalshi"
+              ? formatContracts(market.volume24h)
+              : formatCurrency(market.volume24h)}
           </span>
         </TableCell>
 
         {/* Liquidity */}
         <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
-          <span title={market.source === "kalshi" ? "Open interest in contracts" : "Liquidity in USD"}>
-            {market.source === "kalshi" ? formatContracts(market.liquidity) : formatCurrency(market.liquidity)}
+          <span
+            title={
+              market.source === "kalshi"
+                ? "Open interest in contracts"
+                : "Liquidity in USD"
+            }
+          >
+            {market.source === "kalshi"
+              ? formatContracts(market.liquidity)
+              : formatCurrency(market.liquidity)}
           </span>
         </TableCell>
 
         {/* Star + detail link + trade link */}
-        <TableCell className="text-right w-16" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-2">
+        <TableCell
+          className="text-right w-16"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-end gap-1">
+            <span className="evidence-hover opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+              <MarketEvidence market={market} />
+            </span>
             <button
               onClick={handleStar}
-              aria-label={starred ? "Remove from watchlist" : "Add to watchlist"}
-              className={`transition-all duration-150 ease-out hover:scale-110 active:scale-95 ${
+              aria-label={
+                starred ? "Remove from watchlist" : "Add to watchlist"
+              }
+              className={`control rounded-full transition-all duration-150 ease-out hover:scale-110 active:scale-95 ${
                 starred
                   ? "text-amber-400"
-                  : "text-muted-foreground opacity-0 group-hover:opacity-100"
+                  : "text-muted-foreground evidence-hover opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
               }`}
             >
-              <Star className={`w-3.5 h-3.5 ${starred ? "fill-amber-400" : ""}`} />
+              <Star
+                className={`w-3.5 h-3.5 ${starred ? "fill-amber-400" : ""}`}
+              />
             </button>
-            {market.source === "polymarket" && (
-              <a
-                href={`/market/${market.eventSlug}`}
-                aria-label={`Detail page for ${market.question}`}
-                className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Link className="w-3 h-3" />
-              </a>
-            )}
             <a
               href={tradeUrl}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Open ${market.question} on ${market.source === "kalshi" ? "Kalshi" : market.source === "manifold" ? "Manifold" : "Polymarket"}`}
-              className="inline-flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+              className="control rounded-full gap-1 text-xs text-primary evidence-hover opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
             >
               <ExternalLink className="w-3 h-3" />
             </a>

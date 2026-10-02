@@ -1,6 +1,6 @@
 # SPEC-010: Navigation, page structure and the Guide
 
-Status: design approved for implementation (rev 3, 2 October 2026: simplified) · Owner: product engineering · Target release: v0.2.0
+Status: implemented locally; production release gates pending (rev 4, 2 October 2026: clarified data, history and rollout; validation in `spec-010-baseline.md`) · Owner: product engineering · Target release: v0.2.0
 
 ## 1. Problem
 
@@ -73,7 +73,7 @@ flowchart LR
 | `/methodology` | Retitled "How it works" | Thesis → pillars → measure details → data and evidence |
 | `/research` | Gets the shared header | Unchanged content |
 
-Data: all new pages read the same `/api/bootstrap` snapshot through SWR, which is already CDN-cached. No new venue requests, publisher work or Blob writes. `/#monitor` stays as an anchor on Today (hash links cannot redirect server-side), pointing at the briefing tile that links to `/moves`.
+Data: the shared header and every current-data page, including `/pulse`, read the same `/api/bootstrap` snapshot through one shared SWR key and fetcher. The header starts the subscription on page load; page consumers reuse it. `/pulse` switches from its separate `/api/indices` subscription to this cache so its displayed data and header freshness refer to the same publication. Static descriptions remain server-rendered. The bootstrap endpoint is already CDN-cached. No new venue requests, publisher work or Blob writes. `/#monitor` stays as an anchor on Today (hash links cannot redirect server-side), pointing at the always-present briefing section (`id="monitor"`), which includes an `All moves →` link even when no move tile qualifies.
 
 ## 5. Site menu
 
@@ -88,7 +88,7 @@ Data: all new pages read the same `/api/bootstrap` snapshot through SWR, which i
 ```
 
 - **Primary links** (≥ `md`): the five pillars. The active route gets `text-foreground` plus a 2px `primary` underline, set via `aria-current="page"`.
-- **Freshness chip**: the *only* place the snapshot time appears site-wide. States: `Updated 6:38 PM` (hourly, muted), `Delayed · 6:38 PM` (amber dot), `Last known · Oct 1` (rose dot). Clicking it opens the Guide on the `freshness` entry. This replaces the freshness line in `HomeDashboard`, the per-card `Snapshot …` lines in `RelatedPairCard`/`DecisionDistributionSection`, and the captured-at line in `IndicesSection`.
+- **Freshness chip**: the only default-view publication timestamp on each page. Exact publication and source-record times remain available inside the freshness Guide and item evidence; historical research and chart dates remain meaningful data, not duplicate freshness labels. States: `Updated 6:38 PM` (hourly, muted), `Delayed · 6:38 PM` (amber dot), `Last known · Oct 1` (rose dot). Clicking it opens the Guide on the `freshness` entry. This replaces the freshness line in `HomeDashboard`, the per-card `Snapshot …` lines in `RelatedPairCard`/`DecisionDistributionSection`, and the captured-at line in `IndicesSection`. Before the first response, show a neutral clock with accessible label `Loading snapshot status`; if no snapshot can be loaded, show `Snapshot unavailable`. Retained data keeps its actual age-derived status after a revalidation failure. Recompute age on a timer and on tab visibility changes, using the existing snapshot-age thresholds, so a cached response cannot remain labelled fresh indefinitely. On mobile, pair the coloured dot with a distinct status glyph and an accessible status label; colour alone cannot encode freshness.
 - **Saved** (star + count from `getWatchlist()`): links to `/markets?sort=watchlist`. Hidden when the count is 0.
 - **Explore** (`LayoutGrid` icon, label visible ≥ `lg`): opens the Explore panel. Shows as the hamburger below `md`. No keyboard shortcut until search ships (§5.4).
 - Header height is a fixed 56px. It stays sticky with backdrop blur.
@@ -112,15 +112,15 @@ A full-width panel drops below the header (max-width `screen-xl`, 24px padding, 
 │   Headlines next to odds    Where activity is          Your markets, on this  │
 │                             concentrating              device                 │
 │──────────────────────────────────────────────────────────────────────────────│
-│ UNDERSTAND   ⓘ How Predpulse works   ⛨ Evidence & history     ◷ Updated 6:38 PM│
+│ UNDERSTAND   ⓘ How Predpulse works   ⛨ Evidence & history                     │
 │ "Prediction markets put a price on what people expect to happen…"            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - Each entry has an icon, a name and a **hook** (≤ 40 characters, written from the user's side, taken from `guide.hook`).
-- **Only two entries carry a live stat** (≤ 28 characters): Moves (the largest 24h move) and Fed policy balance (leading outcome and lean). These draw people in; more would mean selector code and empty-state tests for little gain. The stat is omitted whenever its data is unavailable, stale or in a warming state. It never shows a placeholder or a zero.
-- Live stats come from the SWR `/api/bootstrap` cache. On routes that don't already load it (`/pulse`, `/methodology`, `/research`), the fetch starts on first panel open, not on page load.
-- The footer always shows the thesis line and the freshness chip.
+- **Only two entries carry a live stat** (≤ 28 characters): Moves (the largest 24h move) and Fed policy balance (leading outcome and lean). These draw people in; more would mean selector code and empty-state tests for little gain. The stat is omitted whenever its data is unavailable, stale or in a warming state. It never substitutes a placeholder or zero for unavailable data; a measured zero remains valid.
+- Live stats come from the header's shared SWR `/api/bootstrap` cache. Opening Explore never starts a separate request or subscription. The panel renders immediately without waiting for data.
+- The footer shows the thesis line. Freshness remains in the header; opening Explore does not duplicate it.
 - On first visit (no `predpulse:onboarded:v1` in localStorage), "How Predpulse works" gets a subtle `New here?` pill. The key is set the first time the panel is opened.
 
 ### 5.3 Mobile (< md)
@@ -129,7 +129,7 @@ A full-width panel drops below the header (max-width `screen-xl`, 24px padding, 
 - **Menu sheet** (☰): a bottom `Sheet` (§5.5) that snaps to 60% height, can be dragged to full height, and is dismissed by swiping down, tapping the backdrop or using the back gesture. It opens in under 150ms, with no data needed to render.
   1. **Pillars first**, at the top and in thumb reach once the sheet is open: a 5-cell grid (Today, Moves, Outlooks, Indices, Markets), each 64px tall with icon and name. The current pillar is highlighted.
   2. Then the remaining Explore entries as 48px rows (icon, name, hook; the two live stats on the right): the features inside each pillar, plus Newsroom and Across venues.
-  3. Then Understand (How it works, Evidence & history), Saved, Theme, and the thesis with freshness at the bottom.
+  3. Then Understand (How it works, Evidence & history), Saved, Theme, and the thesis at the bottom. Snapshot details are reached through the header freshness control or the Guide, without another timestamp.
 - **Continue links:** each pillar page ends with one "Next: Outlooks →" card in the order Today → Moves → Outlooks → Indices → Markets, so a phone user reading top to bottom never needs to scroll back up to the ☰.
 - Body scroll is locked while a sheet is open, without layout shift (`scrollbar-gutter: stable` on desktop; no shift on iOS).
 
@@ -142,8 +142,22 @@ Search and its `⌘K` / `Ctrl K` shortcut ship together, or not at all. It is a 
 - The trigger is a disclosure button (`aria-expanded`, `aria-controls`). Don't use `role="menu"`, because the entries are navigation links.
 - `Esc` closes the panel and returns focus to the trigger. Clicking outside closes it. Following a link closes it.
 - **One `Sheet` primitive** (`components/ui/sheet.tsx`) on `vaul@1.1.2`, pinned exactly (no caret), consistent with the existing Radix pins. `vaul` is built on Radix Dialog, so it supplies the focus trap, `Esc`, focus return and scroll lock. It takes `direction="right"` for the desktop Guide and `direction="bottom"` for all mobile sheets. The menu, Guide, evidence (mobile) and index details (mobile) all use it: one behaviour, one set of tests, no second dialog library. The desktop Explore panel is a plain disclosure region, not a dialog.
-- **Back closes sheets.** Opening any sheet pushes a history entry. The Android back button, the iOS edge swipe and the browser back button then close the sheet instead of leaving the page. Closing with ✕, a swipe or the backdrop calls `history.back()` when that entry was pushed by the app.
-- **Only shareable states change the URL:** `?guide=<id>` and `?index=<id>`. The menu sheet pushes a state-only entry (`history.pushState({ sheet: "menu" }, "")`) with no query parameter.
+- **One history controller** owns menu, Guide, mobile index and mobile evidence state. Preserve all existing Next history fields when pushing or replacing state; add only a namespaced `predpulseSheet` marker with an entry id and its parent. Desktop evidence popovers and desktop Explore do not add history entries. `popstate` restores the UI without pushing a new entry. Forward restores an owned sheet when its referenced data still exists; unavailable evidence closes safely.
+- **Only shareable sheet states change the URL:** `?guide=<id>` and `?index=<id>`. Existing page parameters (including Markets filters and research queries) and hashes are preserved. Menu and mobile evidence use state-only entries. Unknown Guide/index ids are ignored and removed with `replaceState`, leaving the page usable.
+
+| Transition | History and dismissal behaviour |
+|---|---|
+| Page → menu, Guide or mobile index | Push one owned entry. Back closes it and restores the page and its scroll position. |
+| Menu → Guide | Replace the menu entry with the Guide entry. Back returns to the page, not the menu. Desktop Explore simply closes before the Guide opens. |
+| Guide → related Guide topic | Replace the current entry; topics never accumulate history. |
+| Mobile index → Guide or evidence | Push a child entry and suspend the index sheet. Back or dismissal restores the index sheet, its internal scroll and the originating control. Only one sheet is visible at a time; preserve `?index=` while showing its child. |
+| Page/card → mobile evidence | Push a state-only entry identifying the item and publication. Back returns to the page. Missing or changed evidence is shown as unavailable, never silently substituted. |
+| ✕, swipe, backdrop or Esc | Call `history.back()` only when the current entry is owned by this controller in this session. Wait for `popstate` before another history mutation. |
+| Direct load/reload of `?guide=` or mobile `?index=` | Open from the URL without pushing. Explicit dismissal removes only the dismissed sheet parameter with `replaceState`; it never navigates off-site. Browser Back retains its normal navigation behaviour. |
+| Sheet → navigation link | Unwind owned sheet entries to their base page, then navigate once after history settles. For an unowned direct-link state, remove its sheet parameter before navigation. Returning with Back shows the base page, not an abandoned menu. |
+
+Focus returns to the originating control after dismissal; if it no longer exists, use the page heading. Opening a direct link focuses the sheet heading. Route changes cancel pending sheet actions and clear transient sheet state. Test navigation and rapid repeated dismissals explicitly.
+
 - All targets are ≥ 44×44px. Colour is never the only state indicator.
 
 ## 6. The Guide (centralized explanations)
@@ -174,7 +188,7 @@ export interface GuideEntry {
 ### 6.2 Guide panel
 
 - The shared `Sheet`: a 420px right-hand sheet on desktop. On mobile it is a bottom sheet: it opens at 60% height so the section behind stays visible for context, drags to 92dvh, and swipes down to close. It has a drag handle, and the ✕ sits at the top-right of the sheet. Content scrolls inside the sheet and never scrolls the page behind it.
-- It opens from any section's `ⓘ` button, the freshness chip and the Explore panel. It is URL-addressable via `?guide=<id>`, so support and social links can deep-link an explanation. The history entry is pushed, so back closes it (§5.5). "Works well with" chips replace that entry, so switching topics doesn't stack history.
+- It opens from any section's `ⓘ` button, the freshness chip and the Explore panel. It is URL-addressable via `?guide=<id>`, so support and social links can deep-link an explanation. In-app opening pushes or replaces an owned history entry; direct links open without an extra entry (§5.5). "Works well with" chips replace that entry, so switching topics doesn't stack history.
 - Content order is fixed:
 
 ```
@@ -255,7 +269,7 @@ export interface GuideEntry {
 | `MarketTable` | "Hide low-volume / low-liquidity markets" sub-label | `markets` Guide entry | Controls (the existing mobile controls sheet is kept) |
 | `/research` | Bespoke header | Shared `HeaderBar` | Content unchanged |
 
-Empty and degraded states (stale, warming, no qualifying events) **stay inline**. They describe the current data, not the feature.
+Interpretation, formulas and method explanations stay behind the section Guide icon or item evidence icon. Benefit hooks remain visible; do not add explanatory labels beside derived numbers. Empty and degraded states (stale, warming, no qualifying events) **stay inline**. They describe the current data, not the feature.
 
 ## 8. Layout and spacing
 
@@ -282,7 +296,11 @@ Explore Predpulse                                    (same entries as the Explor
 Footer
 ```
 
-Tile fallbacks: if a tile's data is unavailable, show the next available product (Market Attention top category, then Observed move). Never show an empty tile.
+**Briefing selection:** a pure `briefingTiles(bootstrap, now)` selector returns up to three distinct tiles, in priority order: Biggest move, Fed policy balance, Belief Shift; fill vacant places with Market Attention top category, then Observed move. Select the largest absolute eligible move; break ties by stable market id. Pick the available Belief Shift category with the largest headline, with a stable id tie-break. Never repeat a product or the same contract to fill space. A valid zero is data, not a missing reading.
+
+- Eligible means a finite reading, valid underlying data and a non-stale publication. Warming products without a headline are ineligible. Fed eligibility follows §9; the Today tile uses only the benchmark summary, never the Outlooks fallback card. Loading uses matching skeleton rows/cards.
+- If fewer than three candidates qualify, render one or two tiles and let the desktop grid match their count. If none qualify, replace the tiles with one inline state: `Snapshot unavailable`, `Last-known snapshot — current briefing unavailable`, or `No qualifying readings in this snapshot`, as appropriate. Never manufacture a reading or route a fallback to an unavailable Fed view.
+- Each tile's icon, name, hook and destination match its selected product. Explanations remain in the Guide.
 
 ### 8.2 Mobile (first-class, designed at 390px, must work at 320px)
 
@@ -297,11 +315,11 @@ Tile fallbacks: if a tile's data is unavailable, show the next available product
 | Unintended horizontal overflow | Market table | 0. Only designated carousels may scroll sideways |
 
 **Layout:**
-- **Today:** the hero is capped at `min-h-[300px]` with the landscape underneath and is about 1 screen. The three briefing tiles stack as compact rows (about 96px each: label, big number, one-line context, chevron), with the whole row tappable. The Newsroom keeps its existing snap carousel. Explore shows as a 2-column grid of icon and name.
+- **Today:** the hero is capped at `min-h-[300px]` with the landscape underneath and is about 1 screen. Up to three briefing tiles stack as compact rows (about 96px each: label, big number, one-line context, chevron), with the whole row tappable. The Newsroom keeps its existing snap carousel. Explore shows as a 2-column grid of icon and name.
 - **Cards:** full-bleed within `px-4`. Numbers stay right-aligned in a fixed `tabular-nums` column, so rows scan vertically. Question titles are `line-clamp-2`.
 - **Markets (`/markets`):** below `md`, rows render as a 2-line list instead of the 640px table. Line 1 is the question (clamp 2) with %, and line 2 is venue · Δ 24h with ★. Tapping a row expands it in place. Volume and liquidity live in the expansion, not as columns. The sort tabs scroll horizontally with an edge fade, and the active tab scrolls into view. The existing cog bottom sheet for filters stays.
 - **Event outlook bars:** the label and % sit on one line above the bar. Long labels wrap rather than truncating the %.
-- **Index details (`/pulse`):** tapping a tile opens its detail as a full-height bottom `Sheet` with `?index=<id>` pushed, so back closes it. Today the detail renders below all the tiles, off-screen. Charts get full width and must fit 320px without horizontal scroll.
+- **Index details (`/pulse`):** tapping a tile opens its detail as a full-height bottom `Sheet` with `?index=<id>` managed by §5.5, so in-app Back closes it and direct-link dismissal stays on the page. Today the detail renders below all the tiles, off-screen. Charts get full width and must fit 320px without horizontal scroll.
 - **Spacing:** `space-y-10` between sections and `gap-3` inside grids. Spacing is never below 16px between tappable elements. Fixed chrome is the 56px sticky header only, plus the top safe area.
 
 **Fluency:**
@@ -314,9 +332,9 @@ Tile fallbacks: if a tile's data is unavailable, show the next available product
 
 ## 9. Implementation plan (independent PRs, merge in order)
 
-0. **Baseline (before PR 1 merges, no code).** Record from Vercel Analytics the last 30 days of page views per route, and the share of visits that go beyond `/`. Record mobile and desktop p75 LCP, INP and CLS from Speed Insights. Run the mobile audit script against production. Run the five-person test (§10) on production. Store the results in `docs/spec-010-baseline.md`.
-1. **PR 1 — Foundations.** `lib/guide.ts` (registry + copy, including hooks for product sign-off), `lib/nav.ts` (pillars, routes, icons, the two live-stat selectors and `fedPresentation`, as pure functions of `Bootstrap`), `components/ui/sheet.tsx` on `vaul@1.1.2` (exact pin), `GuidePanel`, `GuideButton`, `EvidencePopover` (renamed `MetaNote`). `/methodology` renders from the registry. No visible change elsewhere.
-2. **PR 2 — Header and Explore panel.** `HeaderBar` v2 (moved into `app/layout.tsx`), `ExplorePanel`, `MobileNavSheet`, `FreshnessChip`, a shared `useBootstrap()` hook (extracted from `HomeDashboard`), the `viewport` export, the `PageTransition` fix, and `/research` using `HeaderBar`. Behind `NEXT_PUBLIC_NAV_V2`.
+0. **Baseline (before PR 1 merges, no application changes).** Prepare the audit script in report-only mode; baseline collection records existing failures without blocking. Record from Vercel Analytics the last 30 days of page views per route, and the share of visits that go beyond `/`. Record mobile and desktop p75 LCP, INP and CLS from Speed Insights. Run the mobile audit script against production. Run the five-person test (§10) on production. Store the results in `docs/spec-010-baseline.md`.
+1. **PR 1 — Foundations.** `lib/guide.ts` (registry + copy, including hooks for product sign-off), `lib/nav.ts` (pillars, routes, icons, the two live-stat selectors, `briefingTiles` and `fedPresentation`, as pure functions of `Bootstrap` plus an explicit `now`), `components/ui/sheet.tsx` on `vaul@1.1.2` (exact pin), `GuidePanel`, `GuideButton`, `EvidencePopover` (renamed `MetaNote`). `/methodology` renders from the registry. No visible change elsewhere.
+2. **PR 2 — Header and Explore panel.** `HeaderBar` v2 (moved into `app/layout.tsx`), `ExplorePanel`, `MobileNavSheet`, `FreshnessChip`, a shared `useBootstrap()` hook (extracted from `HomeDashboard`, used by the header and `/pulse`), the sheet history controller, the `viewport` export, the `PageTransition` fix, and `/research` using `HeaderBar`. Behind `NEXT_PUBLIC_NAV_V2`.
 3. **PR 3 — Pillar pages.** `/moves`, `/outlooks`, `/markets` (each with `pageMetadata`, canonical, and added to `sitemap.ts`), and Today recomposed per §8.1. The new Today and the new header are behind `NEXT_PUBLIC_NAV_V2`. With the flag off, the old homepage renders unchanged.
 4. **PRs 4a–4e — Sub-text reduction and mobile layout, one page at a time.** Each applies §7, the §8 spacing and type rules and §8.2 to that page's components, and must pass the mobile audit for that page before merge.
    - **4a Today:** `HeroSection`, briefing tiles, Newsroom, Explore grid.
@@ -341,10 +359,21 @@ Tile fallbacks: if a tile's data is unavailable, show the next available product
 
 - `lib/__tests__/guide.test.ts`: every `GuideId` has a non-empty `why`/`see`/`read`/`limits`. Length limits from §6.4 hold. `why` doesn't start with a banned opener. `related` ids resolve. Every `method` anchor exists on `/methodology`.
 - `lib/__tests__/nav.test.ts`: every nav route is a real app route. The two live-stat selectors return `null` (never `"0"` or a placeholder) for missing, stale or warming data. Hooks are ≤ 40 characters.
-- **Single Fed view:** the Outlooks summary/fallback choice is a pure function in `lib/nav.ts`, `fedPresentation(bootstrap) → "summary" | "fallback-card" | null`. Tests assert three cases: `summary` whenever `fed-policy-balance` is available; `fallback-card` only when the benchmark is withheld and the decision distribution is valid; `null` otherwise. The Today tile and the summary row link to `/pulse?index=fed-policy-balance`, and the test asserts that link target. Components only switch on this value.
+- **Single Fed view:** the Outlooks summary/fallback choice is a pure function in `lib/nav.ts`, `fedPresentation(bootstrap, now) → "summary" | "fallback-card" | null`. The benchmark is eligible only when its id is `fed-policy-balance`, `state === "available"`, its headline and normalized shares are finite, its meeting identity exists, the index digest `asOf` matches `bootstrap.generatedAt`, and both the publication and index digest are non-stale under their existing age rules. A missing 24h baseline does not invalidate a valid current meeting reading.
+  - Return `summary` for an eligible benchmark, using its own meeting date, shares and lean. The Today tile and summary row link to `/pulse?index=fed-policy-balance`.
+  - Otherwise return `fallback-card` only for a validated decision distribution with `coherent === true`, `issue === null`, complete finite buckets and a non-stale `asOf` matching the bootstrap publication. If the benchmark identifies a meeting, its `familyId` and `meetingDate` must match the distribution's `eventId` and `meetingDate`. A benchmark with no identified meeting does not prevent an independently valid distribution from rendering.
+  - Return `null` otherwise; retain the inline unavailable/degraded state. Never combine benchmark and distribution fields across meetings or publications. Raw prices in the benchmark detail come from that digest's own member observations; the moved toggle needs no publisher change.
+  - Test available, unavailable, missing, stale, incoherent, mismatched meeting/publication, zero balance and missing-baseline cases. Components only switch on this result.
+- **Briefing:** test all candidates available, each fallback, fewer than three candidates, duplicate-contract suppression, valid zero, stale/missing data and no eligible candidates. Assert each selected tile's own destination.
+- **Freshness:** test loading, unavailable, retained data after failed revalidation, and age transitions without a new response. Header and `/pulse` must use one bootstrap cache and publication.
+- **Sheet history:** the Preview browser checks cover every transition in §5.5, including direct-link reload and dismissal, Back/Forward, nested index evidence, menu → Guide, navigation while open, preserved Next state and rapid repeated dismissal. Manual real-device UAT verifies gestures separately.
 - **Caveat-preservation test:** a fixture lists the key phrases of every current MetaNote limitation (for example "not a probability", "settlement may differ", "Manifold"). Each must appear in some `GuideEntry.limits` or on the methodology page.
 - `seo.test.ts`: new routes have canonical/title/description and appear in the sitemap. `/pulse` stays canonical for indices.
-- **Mobile audit** (`scripts/mobile-audit.ts`, `@playwright/test@1.63.0` exact pin, dev dependency only, run against a Preview URL; not part of `vitest`). It loads `/`, `/moves`, `/outlooks`, `/pulse` and `/markets` at 320, 390 and 412px and fails the run on any §8.2 budget breach: page height, sub-44px targets, sub-12px text, horizontal overflow outside elements marked `data-carousel`. Run it in CI on each Preview deployment from PR 2 onward. It replaces the ad-hoc audit used to write this section.
+- **Mobile audit** (`scripts/mobile-audit.ts`, `@playwright/test@1.63.0` exact pin, dev dependency only, run against a Preview URL; not part of `vitest`). Use a fixed 844px viewport height at widths 320, 390 and 412px. Audit page height, sub-44px targets, sub-12px text and horizontal overflow outside elements marked `data-carousel`. Apply the stated inline-link/type exceptions; exclude hidden content and the market list from its stated height budget. Measure the settled default view; audit open sheets and expanded rows separately for target size, type and overflow. It replaces the ad-hoc audit used to write this section.
+  - Baseline and PR 2: report existing routes and budgets without enforcing legacy failures. PR 2 enforces its new header/menu/Guide controls and sheet behaviour; missing future routes are explicitly skipped.
+  - PR 3: require all five routes to load and report their budgets. Route or runtime failures block; unfinished layout budgets remain report-only.
+  - PRs 4a–4e: enforce the corresponding page's full budgets as each PR lands; keep all previously completed pages enforced. The final PR and production release require every page to pass.
+  - Report-only violations remain visible in the CI artifact, with route and owning PR. Do not mark an unfinished page as passing.
 - Coverage of the new `lib/` modules ≥ 85%. Component behaviour (focus trap, Esc, focus return, deep links) is covered by the UAT script below until a DOM test environment is introduced.
 
 ### UAT script (run on the Preview deployment with the flag on)
@@ -361,11 +390,11 @@ Tile fallbacks: if a tile's data is unavailable, show the next available product
    - Every control responds on the first tap (no double-tap zoom) and shows press feedback.
    - Rotating to landscape breaks nothing.
    - The mobile audit script passes.
-3. Open ⓘ on each section. The Guide opens on the correct entry, "Works well with" chips switch entries, and `?guide=belief-shift` deep-links.
-4. The snapshot time appears exactly once per page (header chip). A stale snapshot shows the rose state and the movers' inline stale state.
+3. Open ⓘ on each section. The Guide opens on the correct entry, "Works well with" chips switch entries, and `?guide=belief-shift` deep-links. Run every history transition in §5.5: explicit dismissal of a direct link stays on-site, navigation from a sheet leaves no abandoned sheet on Back, and child evidence returns to the index.
+4. The publication timestamp appears once in the default desktop view (header chip); mobile shows its accessible status control. Explore and the menu do not repeat it. The freshness Guide and evidence retain exact times. Loading/error states work on direct visits to `/methodology` and `/research`; `/pulse` matches the header publication. A stale snapshot shows its status glyph and the movers' inline stale state.
 5. The Fed distribution appears in one place only. The Today tile and the Outlooks summary row both open `/pulse?index=fed-policy-balance`, and the Raw/Normalized toggle works there.
 6. JavaScript disabled: `/methodology` and `/pulse` still show the product descriptions (SEO requirement).
-7. Today fits in ≤ 3 viewports at 1440×900, and no empty briefing tile is ever shown.
+7. Today fits in ≤ 3 viewports at 1440×900, and briefing renders up to three distinct eligible tiles or the defined inline state; no empty tile is shown.
 
 ## 10. Success measures
 
@@ -402,6 +431,7 @@ All are compared against the PR 0 baseline, using Vercel Analytics and Speed Ins
   - The sub-text PR is split by page.
   - Three layers of context as the governing principle.
   - A baseline and a five-person test define success.
+- Clarifications (rev 4, 2 October 2026): one bootstrap cache owns current data and header freshness; explicit sheet history transitions; up to three eligible briefing tiles; Fed identity and age checks; progressive audit enforcement. Interpretation stays behind organized Guide and evidence icons.
 - Follow-up, not in this spec: the publisher computes the Fed meeting twice (`lib/decision-distribution.ts` and `lib/outcome-benchmark.ts`). Consolidating them is a publisher change for a later spec. This spec only removes the duplication in the UI.
 
 ## 12. Out of scope

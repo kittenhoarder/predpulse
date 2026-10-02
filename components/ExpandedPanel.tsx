@@ -118,7 +118,7 @@ function StatCell({ label, value, highlight }: StatCellProps) {
         : "text-foreground";
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
         {label}
       </span>
       <span className={`text-sm font-semibold tabular-nums ${color}`}>
@@ -272,7 +272,7 @@ function OrderbookDepthBar({ bids, asks, depthScore, mid }: OrderbookDepthBarPro
         <div className="flex flex-col gap-0.5">
           {topBids.map(([price, qty], i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <span className="text-[10px] tabular-nums text-muted-foreground w-8 text-right">
+              <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
                 {(price * 100).toFixed(0)}¢
               </span>
               <div className="flex-1 bg-muted rounded-sm h-1.5 overflow-hidden">
@@ -281,7 +281,7 @@ function OrderbookDepthBar({ bids, asks, depthScore, mid }: OrderbookDepthBarPro
                   style={{ width: `${(qty / maxQty) * 100}%` }}
                 />
               </div>
-              <span className="text-[10px] tabular-nums text-muted-foreground w-7">
+              <span className="text-xs tabular-nums text-muted-foreground w-7">
                 {qty > 999 ? `${(qty / 1000).toFixed(1)}k` : qty}
               </span>
             </div>
@@ -290,7 +290,7 @@ function OrderbookDepthBar({ bids, asks, depthScore, mid }: OrderbookDepthBarPro
         <div className="flex flex-col gap-0.5">
           {topAsks.map(([price, qty], i) => (
             <div key={i} className="flex items-center gap-1.5">
-              <span className="text-[10px] tabular-nums text-muted-foreground w-8 text-right">
+              <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
                 {(price * 100).toFixed(0)}¢
               </span>
               <div className="flex-1 bg-muted rounded-sm h-1.5 overflow-hidden">
@@ -299,7 +299,7 @@ function OrderbookDepthBar({ bids, asks, depthScore, mid }: OrderbookDepthBarPro
                   style={{ width: `${(qty / maxQty) * 100}%` }}
                 />
               </div>
-              <span className="text-[10px] tabular-nums text-muted-foreground w-7">
+              <span className="text-xs tabular-nums text-muted-foreground w-7">
                 {qty > 999 ? `${(qty / 1000).toFixed(1)}k` : qty}
               </span>
             </div>
@@ -401,17 +401,17 @@ function NewsCard({ article }: { article: GdeltArticle }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="text-xs font-medium leading-snug line-clamp-1 hover:text-primary transition-colors"
+            className="flex min-h-11 items-center text-xs font-medium leading-snug hover:text-primary transition-colors"
           >
             {article.title}
           </a>
           <div className="flex items-center gap-2 flex-wrap">
             <ToneBadge tone={article.tone} />
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               {article.domain}
             </span>
             {article.seendate && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {gdeltRelativeTime(article.seendate)}
               </span>
             )}
@@ -419,7 +419,7 @@ function NewsCard({ article }: { article: GdeltArticle }) {
         </div>
         <button
           onClick={handleExpand}
-          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+          className="control shrink-0 rounded-full text-muted-foreground"
           aria-label={expanded ? "Collapse summary" : "Expand summary"}
         >
           {expanded ? (
@@ -430,7 +430,7 @@ function NewsCard({ article }: { article: GdeltArticle }) {
         </button>
       </div>
       {expanded && (
-        <div className="ml-6 text-[11px] text-muted-foreground leading-relaxed">
+        <div className="ml-6 text-xs text-muted-foreground leading-relaxed">
           {summaryLoading ? (
             <div className="h-8 bg-muted rounded animate-pulse w-3/4" />
           ) : (
@@ -473,11 +473,11 @@ function MetaculusCard({
         </a>
         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
           {showDivergence && delta !== null && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 shrink-0">
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 shrink-0">
               {delta > 0 ? `+${delta}pp` : `${delta}pp`} vs market
             </span>
           )}
-          <span className="text-[10px] text-muted-foreground">via Metaculus</span>
+          <span className="text-xs text-muted-foreground">via Metaculus</span>
         </div>
       </div>
       <div className="shrink-0 text-right">
@@ -488,7 +488,7 @@ function MetaculusCard({
         ) : (
           <span className="text-xs text-muted-foreground">No forecast</span>
         )}
-        <p className="text-[10px] text-muted-foreground">community</p>
+        <p className="text-xs text-muted-foreground">community</p>
       </div>
     </div>
   );
@@ -513,7 +513,7 @@ function ContextSparkline({
 
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
+      <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1.5">
         {label}
         {lastVal !== undefined && (
           <span className="normal-case font-semibold text-foreground ml-1">
@@ -742,7 +742,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
           href={externalUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
+          className="inline-flex min-h-11 items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           {market.source === "kalshi" ? "Kalshi" : market.source === "manifold" ? "Manifold" : "Polymarket"}{" "}
@@ -781,7 +781,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       {/* Section C — 30-day probability sparkline (Polymarket CLOB only) */}
       {market.source === "polymarket" && market.clobTokenId && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Probability history
           </p>
           {!chartData && !chartError && (
@@ -842,7 +842,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       {/* Section D — Recent trades (Polymarket CLOB only) */}
       {market.source === "polymarket" && market.clobTokenId && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Recent activity
           </p>
           {!trades && !tradesError && (
@@ -896,7 +896,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
               {trades.length > 5 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowAllTrades((v) => !v); }}
-                  className="text-xs text-primary hover:text-primary/80 transition-all duration-150 active:scale-95 mt-1 text-left hover:underline underline-offset-2"
+                  className="min-h-11 text-xs text-primary hover:text-primary/80 transition-all duration-150 active:scale-95 mt-1 text-left hover:underline underline-offset-2"
                 >
                   {showAllTrades ? "Show less" : `+${trades.length - 5} more`}
                 </button>
@@ -909,7 +909,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       {/* Section D1 — Smart Money (Polymarket only, when ENABLE_SMART_MONEY is set) */}
       {market.source === "polymarket" && market.topHolders && market.topHolders.length > 0 && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Smart money
           </p>
           <SmartMoneyCard
@@ -923,7 +923,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       {/* Section D2 — Orderbook depth bar (Kalshi + Polymarket when available) */}
       {market.orderbookDepth && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Market depth
           </p>
           <OrderbookDepthBar
@@ -938,7 +938,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
       {/* Section E — Resolution */}
       {(market.description || market.resolutionSource) && (
         <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
             Resolution
           </p>
           {market.description && (
@@ -956,7 +956,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
                     e.stopPropagation();
                     setDescExpanded((v) => !v);
                   }}
-                  className="text-xs text-primary hover:text-primary/80 mt-0.5 transition-all duration-150 active:scale-95 hover:underline underline-offset-2"
+                  className="min-h-11 text-xs text-primary hover:text-primary/80 mt-0.5 transition-all duration-150 active:scale-95 hover:underline underline-offset-2"
                 >
                   {descExpanded ? "Show less" : "Read more"}
                 </button>
@@ -969,7 +969,7 @@ export default function ExpandedPanel({ market }: ExpandedPanelProps) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors w-fit"
+              className="inline-flex min-h-11 items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors w-fit"
             >
               Resolution source <ExternalLink className="w-3 h-3" />
             </a>
@@ -1043,7 +1043,7 @@ function MarketContext({
       {/* Sub-section: News */}
       {(hasNews || newsLoading) && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Related news
           </p>
           {newsLoading ? (
@@ -1065,7 +1065,7 @@ function MarketContext({
       {/* Sub-section: Community Forecasts */}
       {(hasMeta || metaLoading) && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Community forecasts
           </p>
           {metaLoading ? (
@@ -1091,7 +1091,7 @@ function MarketContext({
       {/* Sub-section: Macro context */}
       {(hasMacro || macroLoading) && (
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">
             Macro context
           </p>
           {macroLoading ? (

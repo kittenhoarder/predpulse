@@ -6,13 +6,13 @@
 export function ToneBadge({ tone }: { tone: number }) {
   if (tone > 1)
     return (
-      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 shrink-0">
+      <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 shrink-0">
         Positive
       </span>
     );
   if (tone < -1)
     return (
-      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500 shrink-0">
+      <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500 shrink-0">
         Negative
       </span>
     );

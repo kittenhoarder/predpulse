@@ -11,7 +11,7 @@ describe("crawlable product discovery", () => {
   it("serves durable HTTPS sitemap routes without acquisition or invented timestamps", () => {
     vi.stubEnv("VERCEL_ENV", "production");
     const entries = sitemap();
-    expect(entries.map((entry) => entry.url)).toEqual([SITE_URL, `${SITE_URL}/pulse`, `${SITE_URL}/methodology`, `${SITE_URL}/research`]);
+    expect(entries.map((entry) => entry.url)).toEqual([SITE_URL, `${SITE_URL}/moves`, `${SITE_URL}/outlooks`, `${SITE_URL}/pulse`, `${SITE_URL}/markets`, `${SITE_URL}/methodology`, `${SITE_URL}/research`]);
     expect(entries.every((entry) => !entry.lastModified)).toBe(true);
     expect(getMarkets).not.toHaveBeenCalled();
   });

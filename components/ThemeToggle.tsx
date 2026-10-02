@@ -11,12 +11,13 @@ export function ThemeToggle() {
 
   // Avoid hydration mismatch — render only after mount
   useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="w-9 h-9" />;
+  if (!mounted) return <div className="w-11 h-11" />;
 
   return (
     <Button
       variant="ghost"
       size="icon"
+      className="h-11 w-11"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       aria-label="Toggle theme"
     >
