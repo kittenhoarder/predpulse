@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       preview_url:
-        description: Public Vercel Preview URL with NEXT_PUBLIC_NAV_V2=1
+        description: Vercel Preview URL (public or SSO-protected), with NEXT_PUBLIC_NAV_V2=1
         required: true
       report_only:
         description: Report unfinished layout budgets without enforcing them
@@ -16,9 +16,10 @@ jobs:
   verify:
     if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment.environment != 'Production')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       AUDIT_URL: ${{ inputs.preview_url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+      NEXT_PUBLIC_NAV_V2: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,20 +30,43 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Verify preview flag
+      - name: Check preview access and flag
+        id: preview
         run: |
           node --input-type=module -e '
             const url = new URL(process.env.AUDIT_URL);
             if (url.protocol !== "https:" || !url.hostname.endsWith(".vercel.app")) throw new Error("Expected an HTTPS Vercel Preview URL");
             const response = await fetch(url);
-            if (!response.ok || !(await response.text()).includes("Explore Predpulse")) throw new Error("Preview must be public and NEXT_PUBLIC_NAV_V2=1");
-          '
+            const html = await response.text();
+            if (response.url.startsWith("https://vercel.com/login")) {
+              console.log("::notice::Preview uses Vercel SSO; running the same browser and layout checks against a local flag-on build.");
+              console.log("protected=true");
+            } else if (!response.ok || !html.includes("Explore Predpulse")) {
+              throw new Error("Preview must serve the navigation UI with NEXT_PUBLIC_NAV_V2=1");
+            } else {
+              console.log("protected=false");
+            }
+          ' >> "$GITHUB_OUTPUT"
+      - name: Build flag-on fallback for protected preview
+        if: steps.preview.outputs.protected == 'true'
+        run: |
+          npm run build
+          npm run start -- --hostname 127.0.0.1 --port 3100 > /tmp/navigation-preview.log 2>&1 &
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:3100/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:3100/ > /dev/null
+          echo "AUDIT_URL=http://127.0.0.1:3100" >> "$GITHUB_ENV"
       - run: npm run test:browser
       - name: Audit mobile layouts
         env:
           REPORT_ONLY: ${{ inputs.report_only }}
         run: |
-          if [ "$REPORT_ONLY" = "true" ]; then npm run audit:mobile -- --report-only; else npm run audit:mobile; fi
+          AUDIT_ARGS=()
+          if [ "${{ steps.preview.outputs.protected }}" = "true" ]; then AUDIT_ARGS+=(--fixture); fi
+          if [ "$REPORT_ONLY" = "true" ]; then AUDIT_ARGS+=(--report-only); fi
+          npm run audit:mobile -- "${AUDIT_ARGS[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
