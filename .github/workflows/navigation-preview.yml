@@ -39,7 +39,7 @@ jobs:
             const response = await fetch(url);
             const html = await response.text();
             if (response.url.startsWith("https://vercel.com/login")) {
-              console.log("::notice::Preview uses Vercel SSO; running the same browser and layout checks against a local flag-on build.");
+              console.error("::notice::Preview uses Vercel SSO; running the same browser and layout checks against a local flag-on build.");
               console.log("protected=true");
             } else if (!response.ok || !html.includes("Explore Predpulse")) {
               throw new Error("Preview must serve the navigation UI with NEXT_PUBLIC_NAV_V2=1");
